@@ -5,20 +5,18 @@ import { authclient } from "../../../lib/auth-client";
 import { LoginInterface } from "../../interfaces/login.interface";
 import { Title, Divider, Paper, Text } from "@mantine/core";
 import { FaLock, FaEnvelope, FaUsers, FaChartLine, FaFileInvoice, FaMoneyBillWave, FaArrowRight } from "react-icons/fa";
-import { FcGoogle } from "react-icons/fc";
 
 const SignIn: React.FC = () => {
   const { message } = App.useApp();
   const [isPending, setIsPending] = useState(false);
   const navigate = useNavigate();
 
-  const { data: session } = authclient.useSession();
-
+  const token = localStorage.getItem("ges_com_token");
   useEffect(() => {
-    if (session) {
+    if (token) {
       navigate('/dashboard', { replace: true });
     }
-  }, [session]);
+  }, [token]);
   
   // Nous n'utilisons plus Mantine Form car il y a un conflit avec Ant Design Form
 
@@ -39,7 +37,13 @@ const onLogin = async (values: LoginInterface) => {
       });
       
       if(res?.error) {
-        message.error("Identifiants incorrects");
+        // Vérifier si l'erreur est due à un email non vérifié
+        if(res.error.code === "EMAIL_NOT_VERIFIED") {
+          message.warning("Votre email n'a pas été vérifié. Vous allez être redirigé pour demander un nouvel email de vérification.");
+          navigate(`/auth/verify-email?email=${encodeURIComponent(values.email)}`);
+        } else {
+          message.error("Identifiants incorrects");
+        }
       } else {
         message.success("Connexion réussie !");
         navigate('/dashboard');
@@ -51,6 +55,7 @@ const onLogin = async (values: LoginInterface) => {
       setIsPending(false);
     }
   };
+
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
@@ -161,37 +166,6 @@ const onLogin = async (values: LoginInterface) => {
                   {!isPending && <FaArrowRight />}
                 </Button>
               </Form.Item>
-              
-              <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 text-gray-500 bg-white dark:bg-gray-800 dark:text-gray-400">
-                    Ou connectez-vous avec
-                  </span>
-                </div>
-              </div>
-              
-              <Button
-                type="default"
-                onClick={() => {
-                  setIsPending(true);
-                  authclient.signIn.social({
-                    provider: 'google',
-                    callbackURL: 'https://passionate-wonder-production-b84c.up.railway.app/dashboard'
-                  })
-                  .catch(error => {
-                    console.error(error);
-                    message.error("Une erreur s'est produite lors de la connexion avec Google");
-                    setIsPending(false);
-                  });
-                }}
-                className="w-full h-12 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:shadow-md transition-all duration-300 text-base font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
-                icon={<FcGoogle className="text-xl mr-2" />}
-              >
-                Google
-              </Button>
             </Form>
           </Paper>
         </div>

@@ -4,6 +4,9 @@ import Loader from './common/Loader';
 import PageTitle from './components/PageTitle';
 import SignIn from './pages/Authentication/SignIn';
 import SignUp from './pages/Authentication/SignUp';
+import ForgotPassword from './pages/Authentication/ForgotPassword';
+import ResetPassword from './pages/Authentication/ResetPassword';
+import VerifyEmail from './pages/Authentication/VerifyEmail';
 import Subscription from './pages/Authentication/Subscription';
 import PendingSubscription from './pages/Authentication/PendingSubscription';
 import Success from './pages/Authentication/Success';
@@ -72,6 +75,36 @@ function App() {
             <>
               <PageTitle title="S'inscrire" />
               <SignUp />
+            </>
+          }
+        />
+        
+        <Route
+          path="/auth/forgot-password"
+          element={
+            <>
+              <PageTitle title="Mot de passe oublié" />
+              <ForgotPassword />
+            </>
+          }
+        />
+        
+        <Route
+          path="/auth/reset-password"
+          element={
+            <>
+              <PageTitle title="Réinitialiser le mot de passe" />
+              <ResetPassword />
+            </>
+          }
+        />
+        
+        <Route
+          path="/auth/verify-email"
+          element={
+            <>
+              <PageTitle title="Vérification d'email" />
+              <VerifyEmail />
             </>
           }
         />

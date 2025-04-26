@@ -6,7 +6,6 @@ import { RegisterInterface } from "../../interfaces/register.interface";
 import { Title, Divider, Paper, Text } from "@mantine/core";
 import { FaLock, FaEnvelope, FaUser, FaArrowRight, FaCloud, FaChartLine, FaLaptopCode } from "react-icons/fa";
 import { FaShield } from "react-icons/fa6";
-import { FcGoogle } from "react-icons/fc";
 
 
 const SignUp: React.FC = () => {
@@ -14,13 +13,13 @@ const SignUp: React.FC = () => {
   const [isPending, setIsPending] = useState(false);
   const navigate = useNavigate();
 
-  const { data: session } = authclient.useSession();
+  const token  = localStorage.getItem("ges_com_token");
   
   useEffect(() => {
-    if (session) {
+    if (token) {
       navigate('/dashboard', { replace: true });
     }
-  }, [session]);
+  }, [token]);
 
   const onRegister = async (values: RegisterInterface) => {
     setIsPending(true);
@@ -29,7 +28,6 @@ const SignUp: React.FC = () => {
         email: values.email,
         password: values.password,
         name: values.name,
-        callbackURL: "/dashboard"
       },{
         onSuccess: (ctx)=>{
           const authToken = ctx.response.headers.get("set-auth-token") // get the token from the response headers
@@ -37,7 +35,7 @@ const SignUp: React.FC = () => {
           localStorage.setItem("ges_com_token", authToken!);
         }
       });
-      
+      console.log(res);
       if (res?.error) {
         message.error(res.error.message);
       } else {
@@ -217,36 +215,6 @@ const SignUp: React.FC = () => {
                   {!isPending && <FaArrowRight />}
                 </Button>
               </Form.Item>
-                <div className="relative my-4">
-                              <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
-                              </div>
-                              <div className="relative flex justify-center text-sm">
-                                <span className="px-2 text-gray-500 bg-white dark:bg-gray-800 dark:text-gray-400">
-                                  Ou inscrivez-vous avec
-                                </span>
-                              </div>
-                            </div>
-                            
-                            <Button
-                              type="default"
-                              onClick={() => {
-                                setIsPending(true);
-                                authclient.signIn.social({
-                                  provider: 'google',
-                                  callbackURL: 'https://passionate-wonder-production-b84c.up.railway.app/dashboard'
-                                })
-                                .catch(error => {
-                                  console.error(error);
-                                  message.error("Une erreur s'est produite lors de la connexion avec Google");
-                                  setIsPending(false);
-                                });
-                              }}
-                              className="w-full h-12 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:shadow-md transition-all duration-300 text-base font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
-                              icon={<FcGoogle className="text-xl mr-2" />}
-                            >
-                              Google
-                            </Button>
             </Form>
           </Paper>
         </div>

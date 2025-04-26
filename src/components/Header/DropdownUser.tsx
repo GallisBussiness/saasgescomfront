@@ -13,8 +13,15 @@ const DropdownUser = () => {
   const { data: session } = authclient.useSession() 
 
   const handleLogout = async () => {
-    await authclient.signOut();
-    navigate('/');
+    await authclient.signOut({
+      fetchOptions: {
+        onSuccess: (ctx) => {
+          console.log(ctx);
+          localStorage.removeItem("ges_com_token");
+          navigate('/auth/signin', { replace: true });
+        }
+      }
+    });
   };
 
   // close on click outside

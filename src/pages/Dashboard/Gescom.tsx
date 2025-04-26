@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useLayoutEffect } from 'react';
 import DefaultLayout from '../../layout/DefaultLayout';
 import { Outlet} from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -13,13 +13,15 @@ const GesCom: React.FC = () => {
   const { 
     data: session, 
     isPending,
-  } = authclient.useSession() 
+  } = authclient.useSession()
 
-  useEffect(() => {
-    if (!session) {
-      navigate('/auth/signin');
+  const token  = localStorage.getItem("ges_com_token");
+
+  useLayoutEffect(() => {
+    if (!token) {
+      navigate('/auth/signin', { replace: true });
     }
-  }, [session]);
+  }, [token]);
 
   const { data: subscriptionData, isLoading: checkingSubscription  } = useQuery({
     queryKey: ['subscription', session?.user.id],
@@ -27,6 +29,7 @@ const GesCom: React.FC = () => {
     enabled: !!session,
   });
 
+  // console.log(subscriptionData, session);
 
   useEffect(() => {
     if (session && subscriptionData?.subscription == null && !subscriptionData?.hasActiveSubscription) {
