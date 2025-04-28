@@ -74,8 +74,7 @@ const Abonnements: React.FC = () => {
     queryFn: () => subscriptionService.getAllByUser(userId!),
     enabled: !!userId,
   });
-  
-  console.log(subscriptions)  // Récupérer l'abonnement actif de l'utilisateur
+  // Récupérer l'abonnement actif de l'utilisateur
   const { 
     data: activeSubscription,
     isLoading: loadingActiveSubscription
