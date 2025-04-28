@@ -188,7 +188,6 @@ useEffect(() => {
           textAlign: 'center',
           render: (rowData:any) => (
             <div className="flex items-center justify-center space-x-2">
-              { role === USER_ROLE.ADMIN && <>
                 <Tooltip label="Modifier">
                   <ActionIcon 
                     onClick={() => handleUpdate(rowData)} 
@@ -231,8 +230,6 @@ useEffect(() => {
                     </div>
                   </Popover.Dropdown>
                 </Popover>
-              </>
-            }
             </div>
           ),
         },
