@@ -16,7 +16,7 @@ const SignUp: React.FC = () => {
   const token  = localStorage.getItem("ges_com_token");
   
   useEffect(() => {
-    if (token && token !== 'null') {
+  if (Boolean(token) === true && token !== 'null') {
       navigate('/dashboard', { replace: true });
     }
   }, [token]);

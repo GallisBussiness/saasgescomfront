@@ -18,7 +18,7 @@ const GesCom: React.FC = () => {
   const token  = localStorage.getItem("ges_com_token");
 
   useLayoutEffect(() => {
-    if (token && token !== 'null') {
+    if (Boolean(token) === false || token === 'null') {
       navigate('/auth/signin', { replace: true });
     }
   }, [token]);
