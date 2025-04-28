@@ -10,8 +10,6 @@ import { toast } from 'sonner';
 import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
 import { FamilleService } from "../../services/famille.service";
 import { WeeklyRevenue } from "./WeeklyRevenue";
-import { useAppStore } from "../../common/Loader/store";
-import { USER_ROLE } from "../../acl/Ability";
 import { authclient } from '../../../lib/auth-client';
 
 const schema = yup.object().shape({
@@ -23,7 +21,6 @@ const schema = yup.object().shape({
 
 function Familles() {
   const { data: session } = authclient.useSession() 
-  const { role } = useAppStore() as any;
   const [opened, { open, close }] = useDisclosure(false);
   const [openedU, { open:openU, close:closeU }] = useDisclosure(false);
   const [query, setQuery] = useState('');
