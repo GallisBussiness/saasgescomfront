@@ -18,13 +18,10 @@ const GesCom: React.FC = () => {
   const token  = localStorage.getItem("ges_com_token");
 
   useLayoutEffect(() => {
-    if (token === null || !session) {
+    if (token === null) {
       navigate('/auth/signin', { replace: true });
     }
-    else if (session.user.emailVerified === false) {
-      navigate('/auth/verify-email', { replace: true });
-    }
-  }, [token, session]);
+  }, [token]);
 
   const { data: subscriptionData, isLoading: checkingSubscription  } = useQuery({
     queryKey: ['subscription', session?.user.id],

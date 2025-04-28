@@ -13,7 +13,7 @@ const SignIn: React.FC = () => {
 
   const token = localStorage.getItem("ges_com_token");
   useEffect(() => {
-    if (token) {
+    if (token !== null) {
       navigate('/dashboard', { replace: true });
     }
   }, [token]);
