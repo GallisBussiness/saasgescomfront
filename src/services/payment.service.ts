@@ -1,6 +1,5 @@
 import Api from "./Api";
 import { Service } from "./Service";
-import { Payment } from "../interfaces/payment.interface";
 
 
 /**

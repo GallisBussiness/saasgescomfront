@@ -16,8 +16,8 @@ const SignUp: React.FC = () => {
   const token  = localStorage.getItem("ges_com_token");
   
   useEffect(() => {
-    if (token) {
-      navigate('/dashboard', { replace: true });
+    if (token === null) {
+      navigate('/auth/signin', { replace: true });
     }
   }, [token]);
 
@@ -35,12 +35,11 @@ const SignUp: React.FC = () => {
           localStorage.setItem("ges_com_token", authToken!);
         }
       });
-      console.log(res);
       if (res?.error) {
         message.error(res.error.message);
       } else {
-        message.success("Inscription réussie ! Vous allez être redirigé.");
-        navigate('/dashboard', { replace: true });
+        message.warning("Votre email n'a pas été vérifié. Vous allez être redirigé pour demander un nouvel email de vérification.");
+        navigate(`/auth/verify-email?email=${encodeURIComponent(values.email)}`);
       }
     } catch (error: any) {
       console.error(error);
