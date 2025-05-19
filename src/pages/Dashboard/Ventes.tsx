@@ -4,7 +4,7 @@ import { yupResolver } from 'mantine-form-yup-resolver';
 import * as yup from 'yup';
 import { DataTable } from "mantine-datatable";
 import { AiOutlinePlus } from "react-icons/ai";
-import { ActionIcon, Box, Button, Drawer, Group, HoverCard, LoadingOverlay,Modal,NumberFormatter,NumberInput,Popover, Stack, Table, Text, TextInput, Tooltip} from "@mantine/core";
+import { ActionIcon, Box, Button, Drawer, Group, HoverCard, LoadingOverlay, Modal, NumberFormatter, NumberInput, Popover, Radio, Stack, Table, Text, TextInput, Tooltip} from "@mantine/core";
 import { FaEye, FaPlus, FaTrash, FaSearch, FaShoppingBag, FaRegCalendarAlt, FaMoneyBillWave, FaUser, FaPrint, FaSortAlphaDown, FaSortAlphaDownAlt } from "react-icons/fa";
 import { FaCartShopping, FaRegCircleCheck} from "react-icons/fa6";
 import { BsFillPenFill } from "react-icons/bs";
@@ -72,6 +72,9 @@ function Ventes() {
     columnAccessor: 'type',
     direction: 'asc',
   });
+  const [printModalOpened, setPrintModalOpened] = useState(false);
+  const [selectedVente, setSelectedVente] = useState<any>(null);
+  const [selectedFormat, setSelectedFormat] = useState<'A4' | 'A5'>('A4');
   const paramService = new ParamService();
   const venteService = new VenteService();
   const articleService = new ArticleService();
@@ -222,206 +225,232 @@ const handleCreate  = () => {
 
 
 
-const handlePrint = (facture:any) => {
-  const docDefinition:any = {
-   footer: {text:`Merci d'avoir choisi ${param.nom} à bientôt !!!`,fontSize: 10,alignment: 'center'},
-   styles: {
-     entete: {
-         bold: true,
-         alignment:'center',
-         fontSize:10,
-          color:'white'
-     },
-     center: {
-         alignment:'center',
-     },
-     left: {
-       alignment:'left',
-   },
-   right: {
-     alignment:'right',
- },
-     nombre: {
-       alignment:'right',
-       fontSize:10,
-       bold: true
-   },
-   tword: {
-     fontSize:10,
-     italics:true
- },
- tword1: {
-   fontSize:12,
-   margin:[0,10,0,10]
- },
-   info: {
-       fontSize:10,
-   },
-     header3: {
-         color:"white",
-         fillColor: '#73BFBA',
-         bold: true,
-         alignment:'center',
-         fontSize:6,
-     },
-     header4: {
-       color:"white",
-       fillColor: '#73BFBA',
-       bold: true,
-       alignment:'right',
-       fontSize:6
-   },
-     total:{
-         color:"white",
-         bold: true,
-         fontSize:10,
-         fillColor:'#73BFBA',
-         alignment:'center'
-     },
-     anotherStyle: {
-       italics: true,
-       alignment: 'right'
-     }
-   },
-   content:[
-    {
-      columnGap: 200,
-      columns: [
-        {
-          alignment:'left',
-          stack:[
-            {image:'logo',width: 60,alignment:"right"},
-            {text:`FACTURE`,fontSize: 14,bold: true,alignment:"right",margin:[0,4]},
-          ]
-          
-        },
-        {
-        alignment:'right',
-        width:250,
-          table: {
-            widths: ['*'],
-            body: [
-              [{
-                stack: [
-                  {text:`${param?.nom}`,fontSize: 12,bold: true,alignment:"justify",margin:[0,2]},
-                  {text:`${param?.desc}`,fontSize: 10,bold: true,alignment:"justify",margin:[0,2]},
-                  {text:`${param?.tel}`,fontSize: 10,bold: true,alignment:"justify",margin:[0,2]},
-                ]}],
-            ]
-          }
-        },
-        
-      ],
-      
+// Fonction pour ouvrir le modal de sélection de format d'impression
+const handlePrint = (facture: any) => {
+  setSelectedVente(facture);
+  setPrintModalOpened(true);
+}
+
+// Fonction pour générer et imprimer la facture avec le format sélectionné
+const printInvoice = () => {
+  if (!selectedVente) return;
+  
+  // Ajuster les dimensions en fonction du format sélectionné
+  const pageSize = selectedFormat;
+  const fontSize = selectedFormat === 'A4' ? {
+    title: 16,
+    subtitle: 14,
+    normal: 10,
+    small: 8,
+    table: 10
+  } : {
+    title: 14,
+    subtitle: 12,
+    normal: 9,
+    small: 7,
+    table: 8
+  };
+  
+  const margins = selectedFormat === 'A4' ? [40, 40, 40, 40] : [20, 20, 20, 20];
+  const tableWidths = selectedFormat === 'A4' ? ['25%', '35%', '10%', '10%', '20%'] : ['30%', '30%', '10%', '10%', '20%'];
+  
+  const docDefinition: any = {
+    pageSize: pageSize,
+    pageMargins: margins,
+    footer: {text: `Merci d'avoir choisi ${param.nom} à bientôt !!!`, fontSize: fontSize.normal, alignment: 'center'},
+    styles: {
+      entete: {
+        bold: true,
+        alignment: 'center',
+        fontSize: fontSize.normal,
+        color: 'white'
+      },
+      center: {
+        alignment: 'center',
+      },
+      left: {
+        alignment: 'left',
+      },
+      right: {
+        alignment: 'right',
+      },
+      nombre: {
+        alignment: 'right',
+        fontSize: fontSize.normal,
+        bold: true
+      },
+      tword: {
+        fontSize: fontSize.normal,
+        italics: true
+      },
+      tword1: {
+        fontSize: fontSize.subtitle,
+        margin: [0, 10, 0, 10]
+      },
+      info: {
+        fontSize: fontSize.normal,
+      },
+      header3: {
+        color: "white",
+        fillColor: '#73BFBA',
+        bold: true,
+        alignment: 'center',
+        fontSize: fontSize.small,
+      },
+      header4: {
+        color: "white",
+        fillColor: '#73BFBA',
+        bold: true,
+        alignment: 'right',
+        fontSize: fontSize.small
+      },
+      total: {
+        color: "white",
+        bold: true,
+        fontSize: fontSize.normal,
+        fillColor: '#73BFBA',
+        alignment: 'center'
+      },
+      anotherStyle: {
+        italics: true,
+        alignment: 'right'
+      }
     },
-    {
-      columnGap: 120,
-      columns: [
-        {
-          alignment:'left',
-          width:200,
-          stack:[
-            {text:`CLIENT : `,fontSize: 10,bold: true,alignment:"left",margin:[0,2]},
-            {text:`Nom: ${facture?.client.nom}`,fontSize: 10,alignment:"left",margin:[0,2]},
-            {text:`Tel: ${facture?.client?.tel}`,fontSize: 10,alignment:"left",margin:[0,2]},
-            {text:`Addr: ${facture?.client.addr}`,fontSize: 10,alignment:"left",margin:[0,2]},
-          ]
-          
-        },
-        {
-        alignment:'right',
-        width:200,
-        stack: [
+    content: [
+      {
+        columnGap: selectedFormat === 'A4' ? 200 : 150,
+        columns: [
           {
-            margin: [2,5],
-            fillColor:"#FF5D14",
-            alignment:'left',
-            layout:'noBorders',
+            alignment: 'left',
+            stack: [
+              {image: 'logo', width: selectedFormat === 'A4' ? 80 : 60, alignment: "right"},
+              {text: `FACTURE`, fontSize: fontSize.title, bold: true, alignment: "right", margin: [0, 4]},
+            ]
+          },
+          {
+            alignment: 'right',
+            width: selectedFormat === 'A4' ? 200 : 150,
             table: {
-              widths: ['100%'],
+              widths: ['*'],
               body: [
-                [ {text:`N°: ${facture?.ref}`,fontSize: 12,bold: true,color:'white',margin:[2,1]}],
-                [ {text:`DATE : ${format(new Date(),'dd-MM-yyyy')}`,fontSize: 10,bold: true,margin:[2,1],fillColor:'#F1F5F9'}],
-                [ {text:`ECHEANCE : ${format(facture.date,'dd-MM-yyyy')}`,fontSize: 10,margin:[2,1],bold: true,fillColor:'#F1F5F9'}],
+                [{
+                  stack: [
+                    {text: `${param?.nom}`, fontSize: fontSize.subtitle, bold: true, alignment: "justify", margin: [0, 2]},
+                    {text: `${param?.desc}`, fontSize: fontSize.normal, bold: true, alignment: "justify", margin: [0, 2]},
+                    {text: `${param?.tel}`, fontSize: fontSize.normal, bold: true, alignment: "justify", margin: [0, 2]},
+                  ]
+                }],
               ]
             }
           },
-        ]},
-        
-      ],
-      
-    },
-    {
-      margin: [0,10],
-      width:'100%',
-      alignment: 'justify',
-      layout: {
-        fillColor: function (rowIndex:number) {
-          return (rowIndex === 0) ? '#FF5D14' : null;
-        },
-        hLineWidth: function (i:number, node:any) {
-          return (i === 0 || i === node.table.body.length) ? 2 : 1;
-        },
-        vLineWidth: function () {
-          return 0;
-        },
-        hLineColor: function (i: number, node: { table: { body: string | any[]; }; }) {
-          return (i === 0 || i === node.table.body.length) ? 'black' : 'gray';
-        },
-        vLineColor: function () {
-          return null;
-        },
+        ],
       },
-      table: {
-        widths: ['30%','30%','10%','10%','20%'],
-          body: [
-              [{text:'#REF',style:'entete'}, {text:'DESC',style:'entete'},{text:'QTE',style:'entete'},{text:'PU',style:'entete'},{text:'TOTAL',style:'entete'}],
-               ...facture?.produits?.map((k:any)=> (
-                [{text:`${k.ref}`,style:'info'},
-                {text: `${k.nom}`,style:'info'},
-               {text: `${formatN(k.qte)}`,style:'nombre'},
-               {text: `${formatN(k.pu)}`,style:'nombre'},
-               {text: `${formatN(k.pu * k.qte)}`,style:'nombre'}
-              ]
-              )),
-          ],
-      }
-  },
-  {
-    columnGap: 120,
-    columns: [
-    {},
       {
-      alignment:'right',
-      width:300,
-      stack: [
-        {
-          margin: [2,5],
-          fillColor:"#FF5D14",
-          alignment:'left',
-          layout:'noBorders',
-          table: {
-            widths: ['100%'],
-            body: [
-              [ {text:`MONTANT : ${formatN(facture?.montant)} FCFA`,fontSize: 10,bold: true,margin:[2,1],fillColor:'#F1F5F9'}],
-              [ {text:`REMISE : ${formatN(facture?.remise)} FCFA`,fontSize: 10,bold: true,margin:[2,1],fillColor:'#F1F5F9'}],
-              [ {text:`NET A PAYER : ${formatN(facture?.net_a_payer)} FCFA`,fontSize: 12,color:'white',margin:[2,1],bold: true}],
+        columnGap: selectedFormat === 'A4' ? 120 : 80,
+        columns: [
+          {
+            alignment: 'left',
+            width: selectedFormat === 'A4' ? 200 : 150,
+            stack: [
+              {text: `CLIENT : `, fontSize: fontSize.normal, bold: true, alignment: "left", margin: [0, 2]},
+              {text: `Nom: ${selectedVente?.client.nom}`, fontSize: fontSize.normal, alignment: "left", margin: [0, 2]},
+              {text: `Tel: ${selectedVente?.client?.tel}`, fontSize: fontSize.normal, alignment: "left", margin: [0, 2]},
+              {text: `Addr: ${selectedVente?.client.addr}`, fontSize: fontSize.normal, alignment: "left", margin: [0, 2]},
             ]
-          }
+          },
+          {
+            alignment: 'right',
+            width: selectedFormat === 'A4' ? 200 : 150,
+            stack: [
+              {
+                margin: [2, 5],
+                fillColor: "#FF5D14",
+                alignment: 'left',
+                layout: 'noBorders',
+                table: {
+                  widths: ['100%'],
+                  body: [
+                    [{text: `N°: ${selectedVente?.ref}`, fontSize: fontSize.subtitle, bold: true, color: 'white', margin: [2, 1]}],
+                    [{text: `DATE : ${format(new Date(), 'dd-MM-yyyy')}`, fontSize: fontSize.normal, bold: true, margin: [2, 1], fillColor: '#F1F5F9'}],
+                    [{text: `ECHEANCE : ${format(selectedVente.date, 'dd-MM-yyyy')}`, fontSize: fontSize.normal, margin: [2, 1], bold: true, fillColor: '#F1F5F9'}],
+                  ]
+                }
+              },
+            ]
+          },
+        ],
+      },
+      {
+        margin: [0, 10],
+        width: '100%',
+        alignment: 'justify',
+        layout: {
+          fillColor: function(rowIndex: number) {
+            return (rowIndex === 0) ? '#FF5D14' : null;
+          },
+          hLineWidth: function(i: number, node: any) {
+            return (i === 0 || i === node.table.body.length) ? 2 : 1;
+          },
+          vLineWidth: function() {
+            return 0;
+          },
+          hLineColor: function(i: number, node: {table: {body: string | any[];}}) {
+            return (i === 0 || i === node.table.body.length) ? 'black' : 'gray';
+          },
+          vLineColor: function() {
+            return null;
+          },
         },
-      ]},
-      
+        table: {
+          widths: tableWidths,
+          body: [
+            [{text: '#REF', style: 'entete'}, {text: 'DESC', style: 'entete'}, {text: 'QTE', style: 'entete'}, {text: 'PU', style: 'entete'}, {text: 'TOTAL', style: 'entete'}],
+            ...selectedVente?.produits?.map((k: any) => (
+              [{text: `${k.ref}`, style: 'info'},
+               {text: `${k.nom}`, style: 'info'},
+               {text: `${formatN(k.qte)}`, style: 'nombre'},
+               {text: `${formatN(k.pu)}`, style: 'nombre'},
+               {text: `${formatN(k.pu * k.qte)}`, style: 'nombre'}
+              ]
+            )),
+          ],
+        }
+      },
+      {
+        columnGap: selectedFormat === 'A4' ? 120 : 80,
+        columns: [
+          {},
+          {
+            alignment: 'right',
+            width: selectedFormat === 'A4' ? 300 : 250,
+            stack: [
+              {
+                margin: [2, 5],
+                fillColor: "#FF5D14",
+                alignment: 'left',
+                layout: 'noBorders',
+                table: {
+                  widths: ['100%'],
+                  body: [
+                    [{text: `MONTANT : ${formatN(selectedVente?.montant)} FCFA`, fontSize: fontSize.normal, bold: true, margin: [2, 1], fillColor: '#F1F5F9'}],
+                    [{text: `REMISE : ${formatN(selectedVente?.remise)} FCFA`, fontSize: fontSize.normal, bold: true, margin: [2, 1], fillColor: '#F1F5F9'}],
+                    [{text: `NET A PAYER : ${formatN(selectedVente?.net_a_payer)} FCFA`, fontSize: fontSize.subtitle, color: 'white', margin: [2, 1], bold: true}],
+                  ]
+                }
+              },
+            ]
+          },
+        ],
+      },
     ],
-    
-  },
- ],
- images: {
-  logo: `${import.meta.env.VITE_BACKURL}/uploads/${param?.logo}`,
+    images: {
+      logo: `${import.meta.env.VITE_BACKURL}/uploads/${param?.logo}`,
+    }
+  }
+
+  pdfMake.createPdf(docDefinition).open();
+  setPrintModalOpened(false);
 }
- }
- 
-   pdfMake.createPdf(docDefinition).open();
- }
 
 
 const filtered = (Vente:any[]) => {
@@ -1242,6 +1271,65 @@ const fields = form.getValues().produits.map((item: any, index: number) => (
        </div>
      </form>
    </Drawer>
+
+   {/* Modal pour la sélection du format d'impression */}
+   <Modal
+     opened={printModalOpened}
+     onClose={() => setPrintModalOpened(false)}
+     title={
+       <Text size="lg" fw={700} className="text-slate-800 dark:text-white">
+         Format d'impression
+       </Text>
+     }
+     size="sm"
+     centered
+   >
+     <div className="space-y-4">
+       <Text size="sm" className="text-slate-600 dark:text-slate-300">
+         Veuillez sélectionner le format de papier pour l'impression de la facture :
+       </Text>
+       
+       <div className="space-y-2">
+         <Radio.Group
+           value={selectedFormat}
+           onChange={(value: string) => setSelectedFormat(value as 'A4' | 'A5')}
+           name="formatPaper"
+           className="space-y-2"
+         >
+           <div className="p-3 border border-slate-200 dark:border-slate-700 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+             <Radio value="A4" label={
+               <div className="ml-2">
+                 <Text size="sm" fw={500}>Format A4</Text>
+                 <Text size="xs" color="dimmed">210 × 297 mm - Format standard</Text>
+               </div>
+             } />
+           </div>
+           
+           <div className="p-3 border border-slate-200 dark:border-slate-700 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+             <Radio value="A5" label={
+               <div className="ml-2">
+                 <Text size="sm" fw={500}>Format A5</Text>
+                 <Text size="xs" color="dimmed">148 × 210 mm - Format moyen</Text>
+               </div>
+             } />
+           </div>
+         </Radio.Group>
+       </div>
+       
+       <div className="flex justify-end gap-3 mt-4">
+         <Button variant="subtle" color="gray" onClick={() => setPrintModalOpened(false)}>
+           Annuler
+         </Button>
+         <Button 
+           className="bg-orange-500 hover:bg-orange-600"
+           onClick={printInvoice}
+           leftSection={<FaPrint size={14} />}
+         >
+           Imprimer
+         </Button>
+       </div>
+     </div>
+   </Modal>
     </div>
   )
 }
