@@ -23,8 +23,6 @@ import { FamilleService } from "../../services/famille.service";
 import { UniteService } from "../../services/unite.service";
 import { authclient } from '../../../lib/auth-client';
 import { formatN } from "../../lib/helpers";
-import { USER_ROLE } from "../../acl/Ability";
-import { useAppStore } from "../../common/Loader/store";
 import { DepotService } from "../../services/depot.service";
 import { Depot } from "../../interfaces/depot.interface";
 
@@ -54,9 +52,9 @@ const schema = yup.object().shape({
 
 function Achats() {
   const { data: session } = authclient.useSession() 
-  const { role } = useAppStore() as any;
   const [opened, { open, close }] = useDisclosure(false);
   const [openedA, { open:openA, close:closeA }] = useDisclosure(false);
+  const [deletePopoverOpened, setDeletePopoverOpened] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [remise,setRemise] = useState<number>(0);
   const [debouncedQuery] = useDebouncedValue(query, 200);
@@ -519,14 +517,21 @@ return (
                 </ActionIcon>
               </Tooltip>
               
-              { role === USER_ROLE.ADMIN && 
                 <Tooltip label="Supprimer">
-                  <Popover width={250} position="bottom" withArrow shadow="md">
+                  <Popover 
+                    width={250} 
+                    position="bottom" 
+                    withArrow 
+                    shadow="md" 
+                    opened={deletePopoverOpened === rowData._id}
+                    onChange={() => setDeletePopoverOpened(null)}
+                  >
                     <Popover.Target>
                       <ActionIcon 
                         variant="light" 
                         color="red"
                         className="shadow-sm hover:shadow-md transition-all duration-200"
+                        onClick={() => setDeletePopoverOpened(rowData._id)}
                       >
                         <FaTrash size={14} />
                       </ActionIcon>
@@ -537,14 +542,22 @@ return (
                           Êtes-vous sûr de vouloir supprimer cet achat ?
                         </Text>
                         <div className="flex justify-end gap-2">
-                          <Button variant="outline" color="gray" size="xs">Annuler</Button>
-                          <Button variant="filled" color="red" size="xs" onClick={() => confirm(rowData?._id)}>Confirmer</Button>
+                          <Button className="bg-slate-500 hover:bg-slate-600 text-white" size="xs" onClick={() => setDeletePopoverOpened(null)}>Annuler</Button>
+                          <Button 
+                           className="bg-red-500 hover:bg-red-600 text-white"
+                            size="xs" 
+                            onClick={() => {
+                              confirm(rowData?._id);
+                              setDeletePopoverOpened(null);
+                            }}
+                          >
+                            Confirmer
+                          </Button>
                         </div>
                       </div>
                     </Popover.Dropdown>
                   </Popover>
                 </Tooltip>
-              }
             </div>
           ),
         },
