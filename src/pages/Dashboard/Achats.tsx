@@ -25,6 +25,8 @@ import { authclient } from '../../../lib/auth-client';
 import { formatN } from "../../lib/helpers";
 import { DepotService } from "../../services/depot.service";
 import { Depot } from "../../interfaces/depot.interface";
+import { toast } from "sonner";
+import { validate } from 'uuid';
 
 const schema = yup.object().shape({
     date: yup.date().required('Invalid Date'),
@@ -141,7 +143,8 @@ function Achats() {
 
     const {mutate:createAchat,isPending:loadingCreate} = useMutation({
     mutationFn: (data) => achatService.create(data),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      toast.success(`Achat créé avec succès / #${data.ref}`);
       close();
       qc.invalidateQueries({queryKey:key});
       form.reset()
@@ -151,6 +154,7 @@ function Achats() {
 const {mutate:updateAchat,isPending:loadingUpdate} = useMutation({
  mutationFn:(data:{id:string,data:any}) => achatService.update(data.id, data.data),
  onSuccess: () => {
+  toast.success(`Achat mis à jour avec succès`);
   close();
   qc.invalidateQueries({queryKey:key});
  }
@@ -159,6 +163,7 @@ const {mutate:updateAchat,isPending:loadingUpdate} = useMutation({
 const {mutate:deleteAchat,isPending:loadingDelete} = useMutation({
     mutationFn: (id:string) => achatService.delete(id),
     onSuccess: () => {
+      toast.success(`Achat supprimé avec succès`);
       qc.invalidateQueries({queryKey:key});
     }
 });
@@ -170,16 +175,63 @@ const {mutate:deleteAchat,isPending:loadingDelete} = useMutation({
   };
 
   const onCreate = (values:any) => {
-    if(form.getValues()._id === ''){
-      const {_id,...rest} = values;
-      const montant = values.produits.reduce((acc: number,cur: { pu: number; qte: number; }) => acc + (cur.pu * cur.qte) ,0);
-      createAchat({...rest,montant,remise: remise,net_a_payer:montant - (remise) });
-    }else {
-      const {_id,...rest} = values;
-      const montant = values.produits.reduce((acc: number,cur: { pu: number; qte: number; }) => acc + (cur.pu * cur.qte) ,0);
-      updateAchat({id:_id,data:{...rest,montant,remise:remise,net_a_payer:montant - (remise)}});
+    if (values.produits.length === 0) {
+      toast.error('Aucun produit ajouté à l\'achat', {
+        icon: '⚠️',
+        duration: 3000,
+        position: 'top-center'
+      });
+      return;
     }
     
+    if (!values.fournisseur) {
+      toast.error('Veuillez sélectionner un fournisseur', {
+        icon: '⚠️',
+        duration: 3000,
+        position: 'top-center'
+      });
+      return;
+    }
+
+    // Calculer le montant total
+    const montant = values.produits.reduce((acc: number,cur: { pu: number; qte: number; }) => acc + (cur.pu * cur.qte) ,0);
+    const netAPayer = montant - Number(remise);
+    
+    // Créer ou mettre à jour l'achat
+    if(form.getValues()._id === ''){
+      const {_id,...rest} = values;
+      toast.loading('Enregistrement en cours...', {
+        id: 'creating-achat'
+      });
+      createAchat({
+        ...rest,
+        montant,
+        remise: remise,
+        net_a_payer: netAPayer
+      });
+      toast.success('Achat enregistré avec succès', {
+        id: 'creating-achat',
+        icon: '✅'
+      });
+    } else {
+      const {_id,...rest} = values;
+      toast.loading('Mise à jour en cours...', {
+        id: 'updating-achat'
+      });
+      updateAchat({
+        id: _id,
+        data: {
+          ...rest,
+          montant,
+          remise: remise,
+          net_a_payer: netAPayer
+        }
+      });
+      toast.success('Achat mis à jour avec succès', {
+        id: 'updating-achat',
+        icon: '✅'
+      });
+    }
   }
 
 
@@ -218,51 +270,161 @@ useEffect(() => {
 }, [achats,debouncedQuery,page]);
 
 
+// Scanner de code-barres avec feedback visuel et sonore
 useScanDetection({
-  onComplete: async (code) => { 
+  onComplete: async (code) => {
+    if(code === '') return;
+     
+    try {
       const c = code.replace(/Shift/gi,"");
-      const ar = await mutateAsync(c);
-      if(ar){
-        const prec = form.getValues().produits.find((v: { ref: any; }) => v?.ref === ar.ref);
-        if(prec){
-          form.setValues({produits:form.getValues().produits.map((v: { ref: any; qte: number; }) => {
-          if(v.ref === ar.ref){
-            return {...v,qte: v.qte + 1}
+      if(validate(c)) {
+        const ar = await mutateAsync(c);
+      
+      if(!ar) {
+        toast.error(`Code-barres non reconnu: ${c}`, {
+          icon: '❌',
+          duration: 3000
+        });
+        return;
+      }
+      
+      // Si le produit existe déjà dans le panier
+      const prec = form.getValues().produits.find((v: { ref: any; }) => v?.ref === ar.ref);
+      
+      if(prec) {
+        // Augmenter la quantité
+        form.setValues({
+          produits: form.getValues().produits.map((v: { ref: any; qte: number; }) => {
+            if(v.ref === ar.ref) {
+              return {...v, qte: v.qte + 1}
             }
             return v;
-         })})
-        }
-        else {
-          form.insertListItem('produits',{ ref: ar.ref, nom: ar.nom, pu: ar.prix,qte:1,unite:ar.unite.nom })
-        }
+          })
+        });
         
+        // Notification de succès
+        toast.success(`Quantité de ${ar.nom} augmentée`, { 
+          icon: '⬆️',
+          duration: 2000
+        });
+      } else {
+        // Ajouter un nouveau produit
+        form.insertListItem('produits', { 
+          ref: ar.ref, 
+          nom: ar.nom, 
+          pu: ar.prix, 
+          qte: 1, 
+          unite: ar.unite.nom 
+        });
+        
+      
+        // Notification de succès
+        toast.success(`${ar.nom} ajouté au panier`, { 
+          icon: '🛒',
+          duration: 2000
+        });
       }
-    },
+      }
+    } catch (error) {
+      toast.error('Erreur lors de la lecture du code-barres', {
+        duration: 3000
+      });
+      console.error('Scanner error:', error);
+    }
+  },
 });
 
-const onSelect = (v:any) => {
-  const o = JSON.parse(v);
-  if(o){
-    const prec = form.getValues().produits.find((v: { ref: any; }) => v?.ref === o.ref);
-    if(prec){
-      form.setValues({produits:form.getValues().produits.map((v: { ref: any; qte: number; }) => {
-      if(v.ref === o.ref){
-        return {...v,qte: v.qte + 1}
-        }
-        return v;
-     })})
-    }
-    else {
-      form.insertListItem('produits',{ ref: o.ref, nom: o.nom, pu: o.prix,qte:1,unite:o.unite.nom })
+// Ajouter des raccourcis clavier pour faciliter l'utilisation
+useEffect(() => {
+  const handleKeyDown = (event: KeyboardEvent) => {
+    // Alt+A pour focus sur la recherche d'articles
+    if (event.altKey && event.key === 'a') {
+      const selectElement = document.querySelector('.ant-select-selector');
+      if (selectElement) {
+        (selectElement as HTMLElement).click();
+      }
     }
     
+    // Alt+E pour soumettre le formulaire (enregistrer)
+    if (event.altKey && event.key === 'e' && opened) {
+      const submitButton = document.querySelector('form button[type="submit"]');
+      if (submitButton) {
+        (submitButton as HTMLElement).click();
+      }
+    }
+    
+    // Alt+F pour focus sur le champ fournisseur
+    if (event.altKey && event.key === 'f' && opened) {
+      const fournisseurSelect = document.querySelector('select[id*="fournisseur"]');
+      if (fournisseurSelect) {
+        (fournisseurSelect as HTMLElement).focus();
+      }
+    }
+  };
+  
+  window.addEventListener('keydown', handleKeyDown);
+  return () => {
+    window.removeEventListener('keydown', handleKeyDown);
+  };
+}, [opened]);
+
+const onSelect = (v:any) => {
+  if (!v) return;
+  
+  const o = JSON.parse(v);
+  if (!o) return;
+  
+  // Animation et feedback pour l'ajout réussi
+  const handleSuccessfulAdd = (isNew: boolean) => {
+    // Réinitialiser le champ de recherche après l'ajout
+    setRef(null);
+    
+    // Afficher un toast de confirmation
+    toast.success(
+      isNew ? `${o.nom} ajouté au panier` : `Quantité de ${o.nom} augmentée`, 
+      { 
+        icon: isNew ? '🛒' : '⬆️',
+        duration: 2000, 
+        position: 'bottom-right'
+      }
+    );
+  };
+
+  // Vérifier si le produit est déjà dans le panier
+  const prec = form.getValues().produits.find((v: { ref: any; }) => v?.ref === o.ref);
+  
+  if (prec) {
+    // Si le produit existe déjà, augmenter la quantité
+    const newQty = prec.qte + 1;
+    
+    form.setValues({
+      produits: form.getValues().produits.map((v: { ref: any; qte: number; }) => {
+        if (v.ref === o.ref) {
+          return {...v, qte: newQty}
+        }
+        return v;
+      })
+    });
+    
+    handleSuccessfulAdd(false);
+  } else {
+    // Ajouter un nouveau produit
+    form.insertListItem('produits', { 
+      ref: o.ref, 
+      nom: o.nom, 
+      pu: o.prix, 
+      qte: 1, 
+      unite: o.unite.nom 
+    });
+    
+    handleSuccessfulAdd(true);
   }
-  setRef(v);
 }
 
 
-const fields = form.getValues().produits.map((item: any, index: number) => (
-  <div key={item?.ref} className={`grid grid-cols-4 gap-2 items-center p-2 rounded-md mb-1 ${index % 2 === 0 ? 'bg-white dark:bg-slate-800/80' : 'bg-slate-50 dark:bg-slate-700/50'}`}>
+const fields = form.getValues().produits.map((item: any, index: number) => {
+  return (
+  <div key={item?.ref} className={`grid grid-cols-4 gap-2 items-center p-2 rounded-md mb-1 ${index % 2 === 0 ? 'bg-white dark:bg-slate-800/80' : 'bg-slate-50 dark:bg-slate-700/50'} transition-all duration-300 hover:shadow-md`}>
     <div className="relative">
       <div className="bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-md text-blue-600 dark:text-blue-300 font-medium text-sm text-center">
         {item.ref}
@@ -296,29 +458,74 @@ const fields = form.getValues().produits.map((item: any, index: number) => (
     </div>
     
     <div className="flex items-center gap-2">
-      <NumberInput
-        placeholder="Quantité"
-        withAsterisk
-        style={{ flex: 1}}
-        classNames={{
-          input: 'rounded-md border-slate-200 dark:border-slate-700 font-medium',
-          wrapper: "shadow-sm",
-        }}
-        key={form.key(`produits.${index}.qte`)}
-        {...form.getInputProps(`produits.${index}.qte`)}
-      />
+      <div className="relative flex-1">
+        <div className="flex items-center">
+          <ActionIcon
+            size="xs"
+            variant="subtle"
+            color="blue"
+            onClick={() => {
+              const newQty = Math.max(1, item.qte - 1);
+              form.setFieldValue(`produits.${index}.qte`, newQty);
+            }}
+            className="absolute left-0 top-1 z-10 ml-1"
+            disabled={item.qte <= 1}
+          >
+            <span className="font-bold">-</span>
+          </ActionIcon>
+          
+          <NumberInput
+            placeholder="Quantité"
+            withAsterisk
+            min={1}
+            style={{ flex: 1}}
+            classNames={{
+              input: 'rounded-md border-slate-200 dark:border-slate-700 font-medium pl-7 pr-7 text-center',
+              wrapper: "shadow-sm",
+            }}
+            key={form.key(`produits.${index}.qte`)}
+            {...form.getInputProps(`produits.${index}.qte`)}
+            rightSection={<Text size="xs" color="dimmed">{item.unite}</Text>}
+          />
+          
+          <ActionIcon
+            size="xs"
+            variant="subtle"
+            color="blue"
+            onClick={() => {
+              const newQty = item.qte + 1;
+              form.setFieldValue(`produits.${index}.qte`, newQty);
+            }}
+            className="absolute right-9 top-1 z-10 mr-1"
+          >
+            <span className="font-bold">+</span>
+          </ActionIcon>
+        </div>
+      </div>
       
       <ActionIcon 
         color="red" 
         variant="light" 
-        onClick={() => form.removeListItem('produits', index)}
-        className="shadow-sm hover:shadow-md transition-all duration-200"
+        onClick={() => {
+          // Demander confirmation avant de supprimer
+          const confirmRemove = () => {
+            form.removeListItem('produits', index);
+            toast.success(`Article retiré du panier`, { 
+              icon: '🗑️',
+              duration: 2000, 
+              position: 'bottom-right'
+            });
+          };
+          confirmRemove();
+        }}
+        className="shadow-sm hover:shadow-md transition-all duration-200 hover:bg-red-100"
       >
         <FaTrash size="0.875rem" />
       </ActionIcon>
     </div>
   </div>
-));
+  );
+});
 
 return (
   <div className="relative">
@@ -592,7 +799,7 @@ return (
      </WeeklyRevenue>
       </div>
 
-   <Modal opened={opened} onClose={close} title="Nouvel Achat" size="lg" overlayProps={{ blur: 3, opacity: 0.55 }} centered>
+   <Modal opened={opened} onClose={close} title="Nouvel Achat" size="xl" overlayProps={{ blur: 3, opacity: 0.55 }} centered>
         <form onSubmit={form.onSubmit(onCreate)} className="space-y-4">
        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 mb-6">
          <div className="flex flex-col md:flex-row items-start justify-between gap-6 mb-4">
@@ -610,7 +817,7 @@ return (
                  filterSort={(optionA, optionB) =>
                    `${optionA.label}`.toLowerCase().localeCompare(`${optionB.label}`.toLowerCase())}
                  className="w-full" 
-                 options={articles?.map((v: {nom:string;_id: string;ref: string;}) => ({
+                 options={articles?.map((v: {nom:string;_id: string;ref: string; prix: number; unite: any;}) => ({
                    label: `${v.nom} / ${v.ref}`,
                    value: JSON.stringify(v)
                  }))}
@@ -620,6 +827,17 @@ return (
                  placeholder="Rechercher un produit..."
                  size="large"
                  style={{ borderRadius: '0.5rem' }}
+                 dropdownRender={(menu) => (
+                   <div>
+                     {menu}
+                     <div className="p-2 border-t border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700">
+                       <Text size="xs" className="text-slate-600 dark:text-slate-300">
+                         <span className="inline-block mr-4">Alt+A : Rechercher</span>
+                         <span className="inline-block">Alt+E : Enregistrer</span>
+                       </Text>
+                     </div>
+                   </div>
+                 )}
                />
                <Button 
                  variant="light" 
@@ -631,9 +849,17 @@ return (
                  <FaPlus size={14} />
                </Button>
              </div>
-             <Text size="xs" className="text-slate-500 dark:text-slate-400 mt-1">
-               Scannez un code-barres ou sélectionnez un produit dans la liste
-             </Text>
+             <div className="flex justify-between items-center mt-1">
+               <Text size="xs" className="text-slate-500 dark:text-slate-400">
+                 Scannez un code-barres ou sélectionnez un produit dans la liste
+               </Text>
+               <div className="flex items-center gap-1">
+                 <span className="h-2 w-2 bg-green-500 rounded-full"></span>
+                 <Text size="xs" className="text-green-600 dark:text-green-400">
+                   Scanner actif
+                 </Text>
+               </div>
+             </div>
            </div>
            
            <div className="w-full md:w-1/3">
@@ -703,7 +929,7 @@ return (
                </div>
              </div>
              <div className="max-h-60 overflow-y-auto pr-1">
-               {fields}
+               {fields.reverse()}
              </div>
            </div>
          ) : (
@@ -813,10 +1039,11 @@ return (
             bg="#FF5D14" 
             loading={loadingCreate || loadingUpdate}
             size="md"
-            className="shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+            className="shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 font-bold w-full md:w-auto"
             leftSection={<FaRegCircleCheck size={16} />}
+            rightSection={<div className="text-xs opacity-70">Alt+E</div>}
           >
-            {form.getValues()._id ? 'Mettre à jour' : 'Enregistrer'}
+            {form.getValues()._id ? 'Mettre à jour l\'achat' : 'Enregistrer l\'achat'}
           </Button>
         </div>
       </div>

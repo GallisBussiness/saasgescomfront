@@ -172,9 +172,9 @@ function Achat() {
                   <Table.Tr>
                     <Table.Th className="text-white font-medium">N°</Table.Th>
                     <Table.Th className="text-white font-medium">Référence</Table.Th>
-                    <Table.Th className="text-white font-medium">Description</Table.Th>
-                    <Table.Th className="text-white font-medium">Unité</Table.Th>
                     <Table.Th className="text-white font-medium">Quantité</Table.Th>
+                    <Table.Th className="text-white font-medium">Unité</Table.Th>
+                    <Table.Th className="text-white font-medium">Description</Table.Th>
                     <Table.Th className="text-white font-medium">Prix unitaire</Table.Th>
                     <Table.Th className="text-white font-medium">Total</Table.Th>
                   </Table.Tr>
@@ -195,9 +195,10 @@ function Achat() {
                           {el.ref}
                         </Badge>
                       </Table.Td>
-                      <Table.Td>{el.nom}</Table.Td>
+                      <Table.Td className="font-medium">{el.qte}</Table.Td> 
                       <Table.Td>{el.unite}</Table.Td>
-                      <Table.Td className="font-medium">{el.qte}</Table.Td>
+                      <Table.Td>{el.nom}</Table.Td>
+                     
                       <Table.Td>{formatN(el.pu)} FCFA</Table.Td>
                       <Table.Td className="font-medium text-orange-600 dark:text-orange-400">
                         {formatN(el.pu * el.qte)} FCFA

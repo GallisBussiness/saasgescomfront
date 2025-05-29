@@ -172,7 +172,7 @@ function Overview() {
     // Calculer le prix moyen pour chaque famille
     Object.values(compteur).forEach((famille: FamilleCounter) => {
       if (famille.count > 0) {
-        famille.prixMoyen = famille.totalPrix / famille.count;
+        famille.prixMoyen = Math.round(famille.totalPrix / famille.count);
       }
     });
     

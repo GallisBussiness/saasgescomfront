@@ -31,6 +31,7 @@ import { InventoryService } from "../../services/Inventory.service";
 // import SectionTitle from "../../components/SectionTitle";
 import { formatN } from "../../lib/helpers";
 import { authclient } from '../../../lib/auth-client';
+import { validate } from "uuid";
 
 const schemaC = yup.object().shape({
   nom: yup.string().required('Invalide Nom'),
@@ -162,6 +163,7 @@ function Ventes() {
 const {mutate:updateVente,isPending:loadingUpdate} = useMutation({
  mutationFn:(data:{id:string,data:any}) => venteService.update(data.id, data.data),
  onSuccess: () => {
+  toast.success(`Vente mise à jour avec success`);
   close();
   qc.invalidateQueries({queryKey:key});
  }
@@ -170,6 +172,7 @@ const {mutate:updateVente,isPending:loadingUpdate} = useMutation({
 const {mutate:deleteVente,isPending:loadingDelete} = useMutation({
     mutationFn: (id:string) => venteService.delete(id),
     onSuccess: () => {
+      toast.success(`Vente supprimée avec success`);
       qc.invalidateQueries({queryKey:key});
     }
 });
@@ -184,16 +187,51 @@ const {mutate:deleteVente,isPending:loadingDelete} = useMutation({
 
 
   const onCreate = (values:any) => {
-    if(form.getValues()._id === ''){
-      const {_id,...rest} = values;
-      const montant = values.produits.reduce((acc: number,cur: { pu: number; qte: number; }) => acc + (cur.pu * cur.qte) ,0);
-      createVente({...rest,montant,remise:+remise,net_a_payer:montant - Number(remise)});
-    }else {
-      const {_id,...rest} = values;
-      const montant = values.produits.reduce((acc: number,cur: { pu: number; qte: number; }) => acc + (cur.pu * cur.qte) ,0);
-      updateVente({id:_id,data:{...rest,montant,remise:+remise,net_a_payer:montant - Number(remise)}});
+    if (values.produits.length === 0) {
+      toast.error('Aucun produit ajouté à la vente', {
+        icon: '⚠️',
+        duration: 3000,
+        position: 'top-center'
+      });
+      return;
     }
     
+    if (!values.client) {
+      toast.error('Veuillez sélectionner un client', {
+        icon: '⚠️',
+        duration: 3000,
+        position: 'top-center'
+      });
+      return;
+    }
+
+    // Calculer le montant total
+    const montant = values.produits.reduce((acc: number,cur: { pu: number; qte: number; }) => acc + (cur.pu * cur.qte) ,0);
+    const netAPayer = montant - Number(remise);
+    
+    // Créer ou mettre à jour la vente
+    if(form.getValues()._id === ''){
+      const {_id,...rest} = values;
+      
+      createVente({
+        ...rest,
+        montant,
+        remise: +remise,
+        net_a_payer: netAPayer
+      })
+    } else {
+      const {_id,...rest} = values;
+      
+      updateVente({
+        id: _id,
+        data: {
+          ...rest,
+          montant,
+          remise: +remise,
+          net_a_payer: netAPayer
+        }
+      })
+    }
   }
 
   const {mutate:createClient,isPending:loadingCreateClient} = useMutation({
@@ -252,7 +290,7 @@ const printInvoice = () => {
   };
   
   const margins = selectedFormat === 'A4' ? [40, 40, 40, 40] : [20, 20, 20, 20];
-  const tableWidths = selectedFormat === 'A4' ? ['25%', '35%', '10%', '10%', '20%'] : ['30%', '30%', '10%', '10%', '20%'];
+  const tableWidths = selectedFormat === 'A4' ? ['25%', '10%', '10%', '35%', '20%'] : ['20%', '10%', '10%', '30%', '30%'];
   
   const docDefinition: any = {
     pageSize: pageSize,
@@ -404,12 +442,12 @@ const printInvoice = () => {
         table: {
           widths: tableWidths,
           body: [
-            [{text: '#REF', style: 'entete'}, {text: 'DESC', style: 'entete'}, {text: 'QTE', style: 'entete'}, {text: 'PU', style: 'entete'}, {text: 'TOTAL', style: 'entete'}],
+            [{text: '#REF', style: 'entete'}, {text: 'QTE', style: 'entete'}, {text: 'PU', style: 'entete'},{text: 'DESC', style: 'entete'},  {text: 'TOTAL', style: 'entete'}],
             ...selectedVente?.produits?.map((k: any) => (
               [{text: `${k.ref}`, style: 'info'},
-               {text: `${k.nom}`, style: 'info'},
-               {text: `${formatN(k.qte)}`, style: 'nombre'},
+               {text: `${k.qte}`, style: 'nombre'},
                {text: `${formatN(k.pu)}`, style: 'nombre'},
+               {text: `${k.nom}`, style: 'info'},
                {text: `${formatN(k.pu * k.qte)}`, style: 'nombre'}
               ]
             )),
@@ -492,57 +530,194 @@ useEffect(() => {
 }, [searchParams,page,ventes,debouncedQuery,dateSearchRange,sortStatus]);
 
 
+// Scanner de code-barres avec feedback visuel et sonore
 useScanDetection({
   onComplete: async (code) => {
-    if(code !== ''){
+    if(code === '') return;
+  
+    try {
       const c = code.replace(/Shift/gi,"");
+      if(validate(c)) { 
       const ar = await mutateAsync(c);
-      if(ar){
-        const prec = form.getValues().produits.find((v: { ref: any; }) => v?.ref === ar.ref);
-        if(prec){
-          form.setValues({produits:form.getValues().produits.map((v: { ref: any; qte: number; }) => {
-          if(v.ref === ar.ref){
-            return {...v,qte: v.qte + 1}
-            }
-            return v;
-         })})
-        }
-        else {
-          form.insertListItem('produits',{ ref: ar.ref, nom: ar.nom, pu: ar.prix,qte:1,unite:ar.unite.nom })
+      
+      if(!ar) {
+        toast.error(`Code-barres non reconnu: ${c}`, {
+          icon: '❌',
+          duration: 3000
+        });
+        return;
+      }
+      
+      // Vérifier le stock
+      const stockItem = invs?.find((p: { ref: any; }) => p.ref === ar.ref);
+      if (stockItem?.qr <= 0) {
+        toast.error(`Produit en rupture de stock: ${ar.nom}`, {
+          icon: '⚠️',
+          duration: 3000
+        });
+        return;
+      }
+      
+      // Si le produit existe déjà dans le panier
+      const prec = form.getValues().produits.find((v: { ref: any; }) => v?.ref === ar.ref);
+      
+      if(prec) {
+        // Vérifier si l'ajout d'une unité dépasserait le stock disponible
+        if (prec.qte + 1 > stockItem.qr) {
+          toast.warning(`Limite de stock atteinte pour ${ar.nom}`, {
+            icon: '⚠️',
+            duration: 3000
+          });
+          return;
         }
         
+        // Augmenter la quantité
+        form.setValues({
+          produits: form.getValues().produits.map((v: { ref: any; qte: number; }) => {
+            if(v.ref === ar.ref) {
+              return {...v, qte: v.qte + 1}
+            }
+            return v;
+          })
+        });
+        
+        // Notification de succès
+        toast.success(`Quantité de ${ar.nom} augmentée`, { 
+          icon: '⬆️',
+          duration: 2000
+        });
+      } else {
+        // Ajouter un nouveau produit
+        form.insertListItem('produits', { 
+          ref: ar.ref, 
+          nom: ar.nom, 
+          pu: ar.prix, 
+          qte: 1, 
+          unite: ar.unite.nom 
+        });
+        
+        // Notification de succès
+        toast.success(`${ar.nom} ajouté au panier`, { 
+          icon: '🛒',
+          duration: 2000
+        });
       }
-    } 
-    },
+    }
+    } catch (error) {
+      toast.error('Erreur lors de la lecture du code-barres', {
+        duration: 3000
+      });
+      console.error('Scanner error:', error);
+    }
+  },
 });
 
-const onSelect = (v:any) => {
-  const o = JSON.parse(v);
-   if(invs?.find((p: { ref: any; }) => p.ref === o.ref)?.qr <= 0) {
-    toast.error('Quantité insuffisante en stock');
-    return;
-   }
-  if(o){
-    const prec = form.getValues().produits.find((v: { ref: any; }) => v?.ref === o.ref);
-    if(prec){
-      form.setValues({produits:form.getValues().produits.map((v: { ref: any; qte: number; }) => {
-      if(v.ref === o.ref){
-        return {...v,qte: v.qte + 1}
-        }
-        return v;
-     })})
-    }
-    else {
-      form.insertListItem('produits',{ ref: o.ref, nom: o.nom, pu: o.prix,qte:1,unite:o.unite.nom })
+// Ajouter des raccourcis clavier pour faciliter l'utilisation
+useEffect(() => {
+  const handleKeyDown = (event: KeyboardEvent) => {
+    // Alt+A pour focus sur la recherche d'articles
+    if (event.altKey && event.key === 'a') {
+      const selectElement = document.querySelector('.ant-select-selector');
+      if (selectElement) {
+        (selectElement as HTMLElement).click();
+      }
     }
     
+    // Alt+E pour soumettre le formulaire (enregistrer)
+    if (event.altKey && event.key === 'e' && opened) {
+      const submitButton = document.querySelector('form button[type="submit"]');
+      if (submitButton) {
+        (submitButton as HTMLElement).click();
+      }
+    }
+  };
+  
+  window.addEventListener('keydown', handleKeyDown);
+  return () => {
+    window.removeEventListener('keydown', handleKeyDown);
+  };
+}, [opened]);
+
+const onSelect = (v:any) => {
+  if (!v) return;
+  
+  const o = JSON.parse(v);
+  if (!o) return;
+  
+  // Vérifier le stock
+  const stockItem = invs?.find((p: { ref: any; }) => p.ref === o.ref);
+  if (stockItem?.qr <= 0) {
+    toast.error('Quantité insuffisante en stock', {
+      icon: '⚠️',
+      duration: 3000,
+      position: 'top-center'
+    });
+    return;
   }
-  setRef(v);
+
+  // Animation et feedback pour l'ajout réussi
+  const handleSuccessfulAdd = (isNew: boolean) => {
+    // Réinitialiser le champ de recherche après l'ajout
+    setRef(null);
+    
+    // Afficher un toast de confirmation
+    toast.success(
+      isNew ? `${o.nom} ajouté au panier` : `Quantité de ${o.nom} augmentée`, 
+      { 
+        icon: isNew ? '🛒' : '⬆️',
+        duration: 2000, 
+        position: 'bottom-right'
+      }
+    );
+  };
+
+  // Vérifier si le produit est déjà dans le panier
+  const prec = form.getValues().produits.find((v: { ref: any; }) => v?.ref === o.ref);
+  
+  if (prec) {
+    // Si le produit existe déjà, augmenter la quantité
+    const newQty = prec.qte + 1;
+    
+    // Vérifier si la nouvelle quantité dépasse le stock disponible
+    if (newQty > stockItem.qr) {
+      toast.warning(`Limite de stock atteinte pour ${o.nom}`, {
+        icon: '⚠️',
+        duration: 3000
+      });
+      return;
+    }
+    
+    form.setValues({
+      produits: form.getValues().produits.map((v: { ref: any; qte: number; }) => {
+        if (v.ref === o.ref) {
+          return {...v, qte: newQty}
+        }
+        return v;
+      })
+    });
+    
+    handleSuccessfulAdd(false);
+  } else {
+    // Ajouter un nouveau produit
+    form.insertListItem('produits', { 
+      ref: o.ref, 
+      nom: o.nom, 
+      pu: o.prix, 
+      qte: 1, 
+      unite: o.unite.nom 
+    });
+    
+    handleSuccessfulAdd(true);
+  }
 }
 
 
-const fields = form.getValues().produits.map((item: any, index: number) => (
-  <div key={item?.ref} className={`grid grid-cols-4 gap-2 items-center p-2 rounded-md mb-1 ${index % 2 === 0 ? 'bg-white dark:bg-slate-800/80' : 'bg-slate-50 dark:bg-slate-700/50'}`}>
+const fields = form.getValues().produits.map((item: any, index: number) => {
+  const stockQuantity = invs?.find((p: { ref: any; }) => p.ref === item.ref)?.qr || 0;
+  const isStockLow = item.qte >= stockQuantity;
+  
+  return (
+  <div key={item?.ref} className={`grid grid-cols-4 gap-2 items-center p-2 rounded-md mb-1 ${index % 2 === 0 ? 'bg-white dark:bg-slate-800/80' : 'bg-slate-50 dark:bg-slate-700/50'} transition-all duration-300 hover:shadow-md`}>
     <div className="relative">
       <div className="bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-md text-blue-600 dark:text-blue-300 font-medium text-sm text-center">
         {item.ref}
@@ -575,31 +750,92 @@ const fields = form.getValues().produits.map((item: any, index: number) => (
     </div>
     
     <div className="flex items-center gap-2">
-      <NumberInput
-        placeholder="Quantité"
-        withAsterisk
-        max={invs?.find((p: { ref: any; }) => p.ref === item.ref)?.qr}
-        min={1}
-        style={{ flex: 1}}
-        classNames={{
-          input: invs?.find((p: { ref: any; }) => p.ref === item.ref)?.qr > 0 ? 'rounded-md border-slate-200 dark:border-slate-700 font-medium' : 'bg-red-100 text-red-700 font-medium rounded-md',
-          wrapper: "shadow-sm",
-        }}
-        key={form.key(`produits.${index}.qte`)}
-        {...form.getInputProps(`produits.${index}.qte`)}
-      />
+      <div className="relative flex-1">
+        <div className="flex items-center">
+          <ActionIcon
+            size="xs"
+            variant="subtle"
+            color="blue"
+            onClick={() => {
+              const newQty = Math.max(1, item.qte - 1);
+              form.setFieldValue(`produits.${index}.qte`, newQty);
+            }}
+            className="absolute left-0 top-1 z-10 ml-1"
+            disabled={item.qte <= 1}
+          >
+            <span className="font-bold">-</span>
+          </ActionIcon>
+          
+          <NumberInput
+            placeholder="Quantité"
+            withAsterisk
+            max={stockQuantity}
+            min={1}
+            style={{ flex: 1}}
+            classNames={{
+              input: isStockLow 
+                ? 'bg-red-50 text-red-700 font-medium rounded-md border-red-200 pl-7 pr-7' 
+                : 'rounded-md border-slate-200 dark:border-slate-700 font-medium pl-7 pr-7 text-center',
+              wrapper: "shadow-sm",
+            }}
+            key={form.key(`produits.${index}.qte`)}
+            {...form.getInputProps(`produits.${index}.qte`)}
+            rightSection={
+              <div className="text-xs text-slate-500 pr-2">{item.unite}</div>
+            }
+          />
+          
+          <ActionIcon
+            size="xs"
+            variant="subtle"
+            color="blue"
+            onClick={() => {
+              if (item.qte < stockQuantity) {
+                const newQty = item.qte + 1;
+                form.setFieldValue(`produits.${index}.qte`, newQty);
+              } else {
+                toast.warning(`Stock maximum atteint pour cet article`, {
+                  duration: 2000
+                });
+              }
+            }}
+            className="absolute right-9 top-1 z-10 mr-1"
+            disabled={item.qte >= stockQuantity}
+          >
+            <span className="font-bold">+</span>
+          </ActionIcon>
+        </div>
+        
+        {isStockLow && (
+          <div className="absolute -bottom-4 left-0 w-full text-center">
+            <Text size="xs" className="text-red-500">{`Stock: ${stockQuantity}`}</Text>
+          </div>
+        )}
+      </div>
       
       <ActionIcon 
         color="red" 
         variant="light" 
-        onClick={() => form.removeListItem('produits', index)}
-        className="shadow-sm hover:shadow-md transition-all duration-200"
+        onClick={() => {
+          // Demander confirmation avant de supprimer
+          const confirmRemove = () => {
+            form.removeListItem('produits', index);
+            toast.success(`Article retiré du panier`, { 
+              icon: '🗑️',
+              duration: 2000, 
+              position: 'bottom-right'
+            });
+          };
+          confirmRemove();
+        }}
+        className="shadow-sm hover:shadow-md transition-all duration-200 hover:bg-red-100"
       >
         <FaTrash size="0.875rem" />
       </ActionIcon>
     </div>
   </div>
-));
+  );
+})
 
   return (
     <div className="bg-slate-50 dark:bg-slate-900 min-h-screen p-4">
@@ -976,7 +1212,7 @@ const fields = form.getValues().produits.map((item: any, index: number) => (
          {form.getValues()._id ? 'Modifier la vente' : 'Nouvelle vente'}
        </Text>
      } 
-     size="lg"
+     size="xl"
      overlayProps={{
        blur: 3,
        opacity: 0.55,
@@ -1005,9 +1241,10 @@ const fields = form.getValues().produits.map((item: any, index: number) => (
                filterSort={(optionA, optionB) =>
                  `${optionA.label}`.toLowerCase().localeCompare(`${optionB.label}`.toLowerCase())}
                className="w-full" 
-               options={articles?.map((v: {nom:string;_id: string;ref: string;}) => ({
+               options={articles?.map((v: {nom:string;_id: string;ref: string; prix: number; unite: any;}) => ({
                  label: `${v.nom} / ${v.ref}`,
-                 value: JSON.stringify(v)
+                 value: JSON.stringify(v),
+                 disabled: invs?.find((p: { ref: any; }) => p.ref === v.ref)?.qr <= 0
                }))}
                loading={isLoadingA} 
                value={ref} 
@@ -1015,10 +1252,46 @@ const fields = form.getValues().produits.map((item: any, index: number) => (
                placeholder="Rechercher un produit..."
                size="large"
                style={{ borderRadius: '0.5rem' }}
+               dropdownRender={(menu) => (
+                 <div>
+                   {menu}
+                   <div className="p-2 border-t border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700">
+                     <Text size="xs" className="text-slate-600 dark:text-slate-300">
+                       <span className="inline-block w-3 h-3 rounded-full bg-green-500 mr-1"></span> En stock
+                       <span className="inline-block w-3 h-3 rounded-full bg-red-500 ml-3 mr-1"></span> Rupture de stock
+                     </Text>
+                   </div>
+                 </div>
+               )}
+               optionRender={(option) => {
+                 // S'assurer que option.value est défini avant de le parser
+                 const parsedValue = option.value ? JSON.parse(option.value as string) : null;
+                 const isInStock = parsedValue ? invs?.find((p: { ref: any; }) => p.ref === parsedValue.ref)?.qr > 0 : false;
+                 return (
+                   <div className="flex justify-between items-center w-full px-1">
+                     <span>{option.label}</span>
+                     {!isInStock && (
+                       <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded">
+                         Rupture
+                       </span>
+                     )}
+                     {isInStock && (
+                       <span className="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded">
+                         En stock
+                       </span>
+                     )}
+                   </div>
+                 );
+               }}
              />
-             <Text size="xs" className="text-slate-500 dark:text-slate-400 mt-1">
-               Scannez un code-barres ou sélectionnez un produit dans la liste
-             </Text>
+             <div className="flex justify-between items-center mt-1">
+               <Text size="xs" className="text-slate-500 dark:text-slate-400">
+                 Scannez un code-barres ou sélectionnez un produit dans la liste
+               </Text>
+               <Text size="xs" className="text-blue-600 dark:text-blue-400">
+                 Raccourci: Alt+A pour rechercher
+               </Text>
+             </div>
            </div>
            
            <div className="w-full md:w-1/3">
@@ -1089,7 +1362,7 @@ const fields = form.getValues().produits.map((item: any, index: number) => (
                </div>
              </div>
              <div className="max-h-60 overflow-y-auto pr-1">
-               {fields}
+               {fields.reverse()}
              </div>
            </div>
          ) : (
@@ -1185,10 +1458,12 @@ const fields = form.getValues().produits.map((item: any, index: number) => (
             bg="#FF5D14" 
             loading={loadingCreate || loadingUpdate}
             size="md"
-            className="shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+            className="shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 font-bold"
             leftSection={<FaRegCircleCheck size={16} />}
+            rightSection={<div className="text-xs opacity-70">Alt+E</div>}
+            fullWidth
           >
-            {form.getValues()._id ? 'Mettre à jour' : 'Enregistrer'}
+            {form.getValues()._id ? 'Mettre à jour la vente' : 'Enregistrer la vente'}
           </Button>
         </div>
       </div>
