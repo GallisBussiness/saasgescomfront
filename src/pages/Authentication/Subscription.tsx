@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useLayoutEffect, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { App } from 'antd';
 import { Button, Text, Card, Group, Badge, Loader, Center, Paper, Title, Divider } from '@mantine/core';
@@ -13,6 +13,13 @@ import { checkSubscription } from '../../services/authservice';
 const Subscription: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
+     
+      const token  = localStorage.getItem("ges_com_token");
+      useLayoutEffect(() => {
+        if (Boolean(token) === false || token === 'null') {
+          navigate('/auth/signin', { replace: true });
+        }
+      }, [token]);
   const { message } = App.useApp();
   const [selectedPack, setSelectedPack] = useState<Pack | null>(null);
 

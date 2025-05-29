@@ -1,9 +1,20 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import { useLayoutEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Title, Text, Paper, Button, Group, Box } from '@mantine/core';
 import { FaHourglassHalf, FaCheckCircle, FaHome } from 'react-icons/fa';
 
 const PendingSubscription: React.FC = () => {
+
+
+   const navigate = useNavigate();
+   
+    const token  = localStorage.getItem("ges_com_token");
+    useLayoutEffect(() => {
+      if (Boolean(token) === false || token === 'null') {
+        navigate('/auth/signin', { replace: true });
+      }
+    }, [token]);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4">
       <Paper 
