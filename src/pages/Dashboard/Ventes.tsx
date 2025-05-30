@@ -290,7 +290,7 @@ const printInvoice = () => {
   };
   
   const margins = selectedFormat === 'A4' ? [40, 40, 40, 40] : [20, 20, 20, 20];
-  const tableWidths = selectedFormat === 'A4' ? ['25%', '10%', '10%', '35%', '20%'] : ['20%', '10%', '10%', '30%', '30%'];
+  const tableWidths = selectedFormat === 'A4' ? ['8%', '7%','15%', '25%', '20%', '20%'] : ['8%', '7%', '15%', '25%', '20%', '20%'];
   
   const docDefinition: any = {
     pageSize: pageSize,
@@ -426,28 +426,29 @@ const printInvoice = () => {
           fillColor: function(rowIndex: number) {
             return (rowIndex === 0) ? '#FF5D14' : null;
           },
-          hLineWidth: function(i: number, node: any) {
-            return (i === 0 || i === node.table.body.length) ? 2 : 1;
+          hLineWidth: function() {
+            return 1;
           },
           vLineWidth: function() {
-            return 0;
+            return 1;
           },
-          hLineColor: function(i: number, node: {table: {body: string | any[];}}) {
-            return (i === 0 || i === node.table.body.length) ? 'black' : 'gray';
+          hLineColor: function() {
+            return 'black';
           },
           vLineColor: function() {
-            return null;
+            return 'black';
           },
         },
         table: {
           widths: tableWidths,
           body: [
-            [{text: '#REF', style: 'entete'}, {text: 'QTE', style: 'entete'}, {text: 'PU', style: 'entete'},{text: 'DESC', style: 'entete'},  {text: 'TOTAL', style: 'entete'}],
+            [{text: '#REF', style: 'entete'}, {text: 'Q', style: 'entete'},{text: 'Unit', style: 'entete'}, {text: 'Desc', style: 'entete'},{text: 'Pu', style: 'entete'},  {text: 'Total', style: 'entete'}],
             ...selectedVente?.produits?.map((k: any) => (
               [{text: `${k.ref}`, style: 'info'},
-               {text: `${k.qte}`, style: 'nombre'},
-               {text: `${formatN(k.pu)}`, style: 'nombre'},
+               {text: `${formatN(k.qte)}`, style: 'nombre'},
+               {text: `${k.unite}`, style: 'info'},
                {text: `${k.nom}`, style: 'info'},
+               {text: `${formatN(k.pu)}`, style: 'nombre'},
                {text: `${formatN(k.pu * k.qte)}`, style: 'nombre'}
               ]
             )),
