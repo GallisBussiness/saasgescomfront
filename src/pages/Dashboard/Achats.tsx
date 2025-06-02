@@ -1,11 +1,11 @@
-import {useEffect, useState } from "react";
+import {useEffect, useState, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { yupResolver } from 'mantine-form-yup-resolver';
 import * as yup from 'yup';
 import { DataTable } from "mantine-datatable";
 import { AiOutlinePlus } from "react-icons/ai";
-import { ActionIcon, Box, Button, Drawer, Group, HoverCard, LoadingOverlay, Modal, NumberInput, Popover, Table, Text, TextInput, Select as SelectM, Tooltip } from "@mantine/core";
-import { FaEye, FaPlus, FaTrash, FaSearch, FaShoppingBag, FaRegCalendarAlt, FaMoneyBillWave, FaUser, FaWarehouse } from "react-icons/fa";
+import { ActionIcon, Badge, Box, Button, Drawer, LoadingOverlay, Modal, NumberInput, Text, TextInput, Select as SelectM, Tooltip, Group, HoverCard, Table, Popover } from "@mantine/core";
+import { FaEye, FaPlus, FaMinus, FaTrash, FaSearch, FaShoppingBag, FaRegCalendarAlt, FaMoneyBillWave, FaUser, FaCartPlus, FaWarehouse } from "react-icons/fa";
 import { FaRegCircleCheck, FaCartShopping } from "react-icons/fa6";
 import { BsFillPenFill } from "react-icons/bs";
 import { useForm } from "@mantine/form";
@@ -270,6 +270,64 @@ useEffect(() => {
 }, [achats,debouncedQuery,page]);
 
 
+// État pour la boîte de dialogue de quantité
+const [quantityModalOpened, setQuantityModalOpened] = useState(false);
+const [selectedProduct, setSelectedProduct] = useState<any>(null);
+const [quantityToAdd, setQuantityToAdd] = useState<number>(1);
+const quantityInputRef = useRef<HTMLInputElement>(null);
+
+// Fonction pour ajouter l'article avec la quantité spécifiée
+const addProductWithQuantity = () => {
+  if (!selectedProduct) return;
+  
+  const o = selectedProduct;
+  
+  // Animation et feedback pour l'ajout réussi
+  const handleSuccessfulAdd = (isNew: boolean) => {
+    // Réinitialiser le champ de recherche après l'ajout
+    setRef(null);
+    
+    // Afficher un toast de confirmation
+    toast.success(
+      isNew ? `${o.nom} ajouté au panier (${quantityToAdd} ${o.unite.nom})` : `Quantité de ${o.nom} mise à jour (${quantityToAdd} ${o.unite.nom})`, 
+      { 
+        icon: isNew ? '🛒' : '⬆️',
+        duration: 2000, 
+        position: 'bottom-right'
+      }
+    );
+  };
+  
+  if (o.prec) {
+    // Si le produit existe déjà, mettre à jour la quantité
+    form.setValues({
+      produits: form.getValues().produits.map((v: { ref: any; qte: number; }) => {
+        if (v.ref === o.ref) {
+          return {...v, qte: quantityToAdd}
+        }
+        return v;
+      })
+    });
+    
+    handleSuccessfulAdd(false);
+  } else {
+    // Ajouter un nouveau produit avec la quantité spécifiée
+    form.insertListItem('produits', { 
+      ref: o.ref, 
+      nom: o.nom, 
+      pu: o.prix, 
+      qte: quantityToAdd, 
+      unite: o.unite.nom 
+    });
+    
+    handleSuccessfulAdd(true);
+  }
+  
+  // Fermer la modal et réinitialiser
+  setQuantityModalOpened(false);
+  setSelectedProduct(null);
+}
+
 // Scanner de code-barres avec feedback visuel et sonore
 useScanDetection({
   onComplete: async (code) => {
@@ -280,50 +338,33 @@ useScanDetection({
       if(validate(c)) {
         const ar = await mutateAsync(c);
       
-      if(!ar) {
-        toast.error(`Code-barres non reconnu: ${c}`, {
-          icon: '❌',
-          duration: 3000
-        });
-        return;
-      }
-      
-      // Si le produit existe déjà dans le panier
-      const prec = form.getValues().produits.find((v: { ref: any; }) => v?.ref === ar.ref);
-      
-      if(prec) {
-        // Augmenter la quantité
-        form.setValues({
-          produits: form.getValues().produits.map((v: { ref: any; qte: number; }) => {
-            if(v.ref === ar.ref) {
-              return {...v, qte: v.qte + 1}
-            }
-            return v;
-          })
-        });
+        if(!ar) {
+          toast.error(`Code-barres non reconnu: ${c}`, {
+            icon: '❌',
+            duration: 3000
+          });
+          return;
+        }
         
-        // Notification de succès
-        toast.success(`Quantité de ${ar.nom} augmentée`, { 
-          icon: '⬆️',
-          duration: 2000
-        });
-      } else {
-        // Ajouter un nouveau produit
-        form.insertListItem('produits', { 
-          ref: ar.ref, 
-          nom: ar.nom, 
-          pu: ar.prix, 
-          qte: 1, 
-          unite: ar.unite.nom 
-        });
+        // Si le produit existe déjà dans le panier
+        const prec = form.getValues().produits.find((v: { ref: any; }) => v?.ref === ar.ref);
         
-      
-        // Notification de succès
-        toast.success(`${ar.nom} ajouté au panier`, { 
-          icon: '🛒',
-          duration: 2000
-        });
-      }
+        // Initialiser la quantité à 1 ou à la quantité actuelle + 1
+        setQuantityToAdd(prec ? prec.qte + 1 : 1);
+        
+        // Sauvegarder le produit sélectionné pour l'utiliser après la saisie de la quantité
+        setSelectedProduct({...ar, prec});
+        
+        // Ouvrir la modal de saisie de quantité
+        setQuantityModalOpened(true);
+        
+        // Focus sur l'input de quantité après ouverture de la modal
+        setTimeout(() => {
+          if (quantityInputRef.current) {
+            quantityInputRef.current.focus();
+            quantityInputRef.current.select();
+          }
+        }, 100);
       }
     } catch (error) {
       toast.error('Erreur lors de la lecture du code-barres', {
@@ -360,6 +401,11 @@ useEffect(() => {
         (fournisseurSelect as HTMLElement).focus();
       }
     }
+    
+    // Alt+Q pour valider la quantité dans la modal (quand elle est ouverte)
+    if (event.altKey && event.key === 'q' && quantityModalOpened) {
+      addProductWithQuantity();
+    }
   };
   
   window.addEventListener('keydown', handleKeyDown);
@@ -374,51 +420,25 @@ const onSelect = (v:any) => {
   const o = JSON.parse(v);
   if (!o) return;
   
-  // Animation et feedback pour l'ajout réussi
-  const handleSuccessfulAdd = (isNew: boolean) => {
-    // Réinitialiser le champ de recherche après l'ajout
-    setRef(null);
-    
-    // Afficher un toast de confirmation
-    toast.success(
-      isNew ? `${o.nom} ajouté au panier` : `Quantité de ${o.nom} augmentée`, 
-      { 
-        icon: isNew ? '🛒' : '⬆️',
-        duration: 2000, 
-        position: 'bottom-right'
-      }
-    );
-  };
-
   // Vérifier si le produit est déjà dans le panier
   const prec = form.getValues().produits.find((v: { ref: any; }) => v?.ref === o.ref);
   
-  if (prec) {
-    // Si le produit existe déjà, augmenter la quantité
-    const newQty = prec.qte + 1;
-    
-    form.setValues({
-      produits: form.getValues().produits.map((v: { ref: any; qte: number; }) => {
-        if (v.ref === o.ref) {
-          return {...v, qte: newQty}
-        }
-        return v;
-      })
-    });
-    
-    handleSuccessfulAdd(false);
-  } else {
-    // Ajouter un nouveau produit
-    form.insertListItem('produits', { 
-      ref: o.ref, 
-      nom: o.nom, 
-      pu: o.prix, 
-      qte: 1, 
-      unite: o.unite.nom 
-    });
-    
-    handleSuccessfulAdd(true);
-  }
+  // Initialiser la quantité à 1 ou à la quantité actuelle + 1
+  setQuantityToAdd(prec ? prec.qte + 1 : 1);
+  
+  // Sauvegarder le produit sélectionné pour l'utiliser après la saisie de la quantité
+  setSelectedProduct({...o, prec});
+  
+  // Ouvrir la modal de saisie de quantité
+  setQuantityModalOpened(true);
+  
+  // Focus sur l'input de quantité après ouverture de la modal
+  setTimeout(() => {
+    if (quantityInputRef.current) {
+      quantityInputRef.current.focus();
+      quantityInputRef.current.select();
+    }
+  }, 100);
 }
 
 
@@ -1051,22 +1071,125 @@ return (
     </form>
   </Modal>
 
-  <Drawer 
-    opened={openedA} 
-    onClose={closeA} 
-    title={
-      <Text size="lg" fw={700} className="text-slate-800 dark:text-white">
-        Nouvel Article
-      </Text>
-    }
-    padding="lg"
-    position="right"
-    size="md"
-    overlayProps={{
-      blur: 3,
-      opacity: 0.55,
-    }}
-  >
+   {/* Modal pour la saisie de quantité avant ajout */}
+   <Modal
+     opened={quantityModalOpened}
+     onClose={() => setQuantityModalOpened(false)}
+     title={
+       <Text size="lg" fw={700} className="text-slate-800 dark:text-white flex items-center gap-2">
+         <FaCartPlus className="text-orange-500" />
+         Spécifier la quantité
+       </Text>
+     }
+     size="sm"
+     centered
+     overlayProps={{
+       blur: 3,
+       opacity: 0.65,
+     }}
+     className="quantity-modal"
+   >
+     {selectedProduct && (
+       <div className="space-y-4">
+         <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+           <div className="flex items-center justify-between">
+             <Text fw={600} size="sm" className="text-slate-700 dark:text-slate-200">
+               {selectedProduct.nom}
+             </Text>
+             <Badge color="blue">{selectedProduct.ref}</Badge>
+           </div>
+           <div className="flex items-center justify-between mt-2">
+             <Text size="xs" className="text-slate-500 dark:text-slate-400">
+               Prix unitaire:
+             </Text>
+             <Text fw={600} size="sm" className="text-orange-600 dark:text-orange-400">
+               {formatN(selectedProduct.prix)} FCFA
+             </Text>
+           </div>
+         </div>
+
+         <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
+           <Text fw={500} size="sm" className="text-slate-600 dark:text-slate-300 mb-3 flex items-center gap-2">
+             <FaCartShopping size={14} className="text-orange-500" />
+             Quantité à ajouter
+           </Text>
+           
+           <div className="flex items-center gap-2">
+             <ActionIcon
+               size="lg"
+               variant="subtle"
+               color="orange"
+               onClick={() => setQuantityToAdd(Math.max(1, quantityToAdd - 1))}
+               disabled={quantityToAdd <= 1}
+               className="shadow-sm"
+             >
+               <FaMinus size={14} />
+             </ActionIcon>
+             
+             <NumberInput
+               placeholder="Quantité"
+               value={quantityToAdd}
+               onChange={(val) => setQuantityToAdd(Number(val))}
+               min={1}
+               ref={quantityInputRef}
+               classNames={{
+                 input: "rounded-md border-slate-200 dark:border-slate-700 font-medium text-center",
+                 wrapper: "flex-1 shadow-sm"
+               }}
+               rightSection={
+                 <div className="text-xs text-slate-500 pr-2">{selectedProduct.unite?.nom}</div>
+               }
+             />
+             
+             <ActionIcon
+               size="lg"
+               variant="subtle"
+               color="orange"
+               onClick={() => setQuantityToAdd(quantityToAdd + 1)}
+               className="shadow-sm"
+             >
+               <FaPlus size={14} />
+             </ActionIcon>
+           </div>
+         </div>
+
+         <div className="flex gap-3 mt-4">
+           <Button 
+             variant="subtle"
+             color="gray"
+             onClick={() => setQuantityModalOpened(false)}
+             className="flex-1"
+           >
+             Annuler
+           </Button>
+           <Button 
+             onClick={addProductWithQuantity}
+             className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 transition-all duration-300 shadow-sm text-white flex-1 shadow-md hover:shadow-lg transition-all duration-200"
+             leftSection={<FaCartPlus size={16} />}
+           >
+             Ajouter
+           </Button>
+         </div>
+       </div>
+     )}
+   </Modal>
+
+   <Drawer 
+     opened={openedA} 
+     onClose={closeA} 
+     title={
+       <Text size="lg" fw={700} className="text-slate-800 dark:text-white">
+         Nouveau Fournisseur
+       </Text>
+     }
+     padding="lg"
+     position="right"
+     size="md"
+     overlayProps={{
+       blur: 3,
+       opacity: 0.55,
+     }}
+   >
     <LoadingOverlay
       visible={loadingCreateA || isPending}
       zIndex={1000}

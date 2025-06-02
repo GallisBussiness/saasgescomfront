@@ -1,12 +1,12 @@
-import {useEffect, useState } from "react";
+import {useEffect, useState, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { yupResolver } from 'mantine-form-yup-resolver';
 import * as yup from 'yup';
 import { DataTable } from "mantine-datatable";
 import { AiOutlinePlus } from "react-icons/ai";
-import { ActionIcon, Box, Button, Drawer, Group, HoverCard, LoadingOverlay, Modal, NumberFormatter, NumberInput, Popover, Radio, Stack, Table, Text, TextInput, Tooltip} from "@mantine/core";
-import { FaEye, FaPlus, FaTrash, FaSearch, FaShoppingBag, FaRegCalendarAlt, FaMoneyBillWave, FaUser, FaPrint, FaSortAlphaDown, FaSortAlphaDownAlt } from "react-icons/fa";
-import { FaCartShopping, FaRegCircleCheck} from "react-icons/fa6";
+import { ActionIcon, Badge, Box, Button, Drawer, Group, HoverCard, LoadingOverlay, Modal, NumberFormatter, NumberInput, Popover, Radio, Stack, Table, Text, TextInput, Tooltip} from "@mantine/core";
+import { FaEye, FaPlus, FaTrash, FaSearch, FaShoppingBag, FaRegCalendarAlt, FaMoneyBillWave, FaUser, FaPrint, FaSortAlphaDown, FaSortAlphaDownAlt, FaCartPlus } from "react-icons/fa";
+import { FaCartShopping, FaMinus, FaRegCircleCheck} from "react-icons/fa6";
 import { BsFillPenFill } from "react-icons/bs";
 import { useForm } from "@mantine/form";
 import { toast } from 'sonner';
@@ -624,6 +624,11 @@ useEffect(() => {
       }
     }
     
+    // Alt+Q pour valider la quantité dans la modal (quand elle est ouverte)
+    if (event.altKey && event.key === 'q' && quantityModalOpened) {
+      addProductWithQuantity();
+    }
+    
     // Alt+E pour soumettre le formulaire (enregistrer)
     if (event.altKey && event.key === 'e' && opened) {
       const submitButton = document.querySelector('form button[type="submit"]');
@@ -638,6 +643,12 @@ useEffect(() => {
     window.removeEventListener('keydown', handleKeyDown);
   };
 }, [opened]);
+
+// État pour la boîte de dialogue de quantité
+const [quantityModalOpened, setQuantityModalOpened] = useState(false);
+const [selectedProduct, setSelectedProduct] = useState<any>(null);
+const [quantityToAdd, setQuantityToAdd] = useState<number>(1);
+const quantityInputRef = useRef<HTMLInputElement>(null);
 
 const onSelect = (v:any) => {
   if (!v) return;
@@ -656,6 +667,34 @@ const onSelect = (v:any) => {
     return;
   }
 
+  // Vérifier si le produit est déjà dans le panier
+  const prec = form.getValues().produits.find((v: { ref: any; }) => v?.ref === o.ref);
+  
+  // Initialiser la quantité à 1 ou à la quantité actuelle + 1
+  setQuantityToAdd(prec ? prec.qte + 1 : 1);
+  
+  // Sauvegarder le produit sélectionné pour l'utiliser après la saisie de la quantité
+  setSelectedProduct({...o, stockMax: stockItem.qr, prec});
+  
+  // Ouvrir la modal de saisie de quantité
+  setQuantityModalOpened(true);
+  
+  // Focus sur l'input de quantité après ouverture de la modal
+  setTimeout(() => {
+    if (quantityInputRef.current) {
+      quantityInputRef.current.focus();
+      quantityInputRef.current.select();
+    }
+  }, 100);
+}
+
+// Fonction pour ajouter l'article avec la quantité spécifiée
+const addProductWithQuantity = () => {
+  if (!selectedProduct) return;
+  
+  const o = selectedProduct;
+  const stockItem = { qr: o.stockMax };
+  
   // Animation et feedback pour l'ajout réussi
   const handleSuccessfulAdd = (isNew: boolean) => {
     // Réinitialiser le champ de recherche après l'ajout
@@ -663,7 +702,7 @@ const onSelect = (v:any) => {
     
     // Afficher un toast de confirmation
     toast.success(
-      isNew ? `${o.nom} ajouté au panier` : `Quantité de ${o.nom} augmentée`, 
+      isNew ? `${o.nom} ajouté au panier (${quantityToAdd} ${o.unite.nom})` : `Quantité de ${o.nom} mise à jour (${quantityToAdd} ${o.unite.nom})`, 
       { 
         icon: isNew ? '🛒' : '⬆️',
         duration: 2000, 
@@ -671,16 +710,11 @@ const onSelect = (v:any) => {
       }
     );
   };
-
-  // Vérifier si le produit est déjà dans le panier
-  const prec = form.getValues().produits.find((v: { ref: any; }) => v?.ref === o.ref);
   
-  if (prec) {
-    // Si le produit existe déjà, augmenter la quantité
-    const newQty = prec.qte + 1;
-    
+  if (o.prec) {
+    // Si le produit existe déjà, mettre à jour la quantité
     // Vérifier si la nouvelle quantité dépasse le stock disponible
-    if (newQty > stockItem.qr) {
+    if (quantityToAdd > stockItem.qr) {
       toast.warning(`Limite de stock atteinte pour ${o.nom}`, {
         icon: '⚠️',
         duration: 3000
@@ -691,7 +725,7 @@ const onSelect = (v:any) => {
     form.setValues({
       produits: form.getValues().produits.map((v: { ref: any; qte: number; }) => {
         if (v.ref === o.ref) {
-          return {...v, qte: newQty}
+          return {...v, qte: quantityToAdd}
         }
         return v;
       })
@@ -699,17 +733,21 @@ const onSelect = (v:any) => {
     
     handleSuccessfulAdd(false);
   } else {
-    // Ajouter un nouveau produit
+    // Ajouter un nouveau produit avec la quantité spécifiée
     form.insertListItem('produits', { 
       ref: o.ref, 
       nom: o.nom, 
       pu: o.prix, 
-      qte: 1, 
+      qte: quantityToAdd, 
       unite: o.unite.nom 
     });
     
     handleSuccessfulAdd(true);
   }
+  
+  // Fermer la modal et réinitialiser
+  setQuantityModalOpened(false);
+  setSelectedProduct(null);
 }
 
 
@@ -1473,6 +1511,123 @@ const fields = form.getValues().produits.map((item: any, index: number) => {
    </Modal>
 
 
+
+   {/* Modal pour la saisie de quantité avant ajout */}
+   <Modal
+     opened={quantityModalOpened}
+     onClose={() => setQuantityModalOpened(false)}
+     title={
+       <Text size="lg" fw={700} className="text-slate-800 dark:text-white flex items-center gap-2">
+         <FaCartPlus className="text-orange-500" />
+         Spécifier la quantité
+       </Text>
+     }
+     size="sm"
+     centered
+     overlayProps={{
+       blur: 3,
+       opacity: 0.65,
+     }}
+     className="quantity-modal"
+   >
+     {selectedProduct && (
+       <div className="space-y-4">
+         <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+           <div className="flex items-center justify-between">
+             <Text fw={600} size="sm" className="text-slate-700 dark:text-slate-200">
+               {selectedProduct.nom}
+             </Text>
+             <Badge color="blue">{selectedProduct.ref}</Badge>
+           </div>
+           <div className="flex items-center justify-between mt-2">
+             <Text size="xs" className="text-slate-500 dark:text-slate-400">
+               Prix unitaire:
+             </Text>
+             <Text fw={600} size="sm" className="text-orange-600 dark:text-orange-400">
+               {formatN(selectedProduct.prix)} FCFA
+             </Text>
+           </div>
+           <div className="flex items-center justify-between mt-1">
+             <Text size="xs" className="text-slate-500 dark:text-slate-400">
+               Stock disponible:
+             </Text>
+             <Text fw={600} size="sm" className={selectedProduct.stockMax <= 5 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}>
+               {selectedProduct.stockMax} {selectedProduct.unite.nom}
+             </Text>
+           </div>
+         </div>
+
+         <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
+           <Text fw={500} size="sm" className="text-slate-600 dark:text-slate-300 mb-3 flex items-center gap-2">
+             <FaCartShopping size={14} className="text-orange-500" />
+             Quantité à ajouter
+           </Text>
+           
+           <div className="flex items-center gap-2">
+             <ActionIcon
+               size="lg"
+               variant="subtle"
+               color="orange"
+               onClick={() => setQuantityToAdd(Math.max(1, quantityToAdd - 1))}
+               disabled={quantityToAdd <= 1}
+               className="shadow-sm"
+             >
+               <FaMinus size={14} />
+             </ActionIcon>
+             
+             <NumberInput
+               placeholder="Quantité"
+               value={quantityToAdd}
+               onChange={(val) => setQuantityToAdd(Number(val))}
+               max={selectedProduct.stockMax}
+               min={1}
+               ref={quantityInputRef}
+               classNames={{
+                 input: "rounded-md border-slate-200 dark:border-slate-700 font-medium text-center",
+                 wrapper: "flex-1 shadow-sm"
+               }}
+               rightSection={
+                 <div className="text-xs text-slate-500 pr-2">{selectedProduct.unite.nom}</div>
+               }
+             />
+             
+             <ActionIcon
+               size="lg"
+               variant="subtle"
+               color="orange"
+               onClick={() => {
+                 if (quantityToAdd < selectedProduct.stockMax) {
+                   setQuantityToAdd(quantityToAdd + 1);
+                 }
+               }}
+               disabled={quantityToAdd >= selectedProduct.stockMax}
+               className="shadow-sm"
+             >
+               <FaPlus size={14} />
+             </ActionIcon>
+           </div>
+         </div>
+
+         <div className="flex gap-3 mt-4">
+           <Button 
+             variant="subtle"
+             color="gray"
+             onClick={() => setQuantityModalOpened(false)}
+             className="flex-1"
+           >
+             Annuler
+           </Button>
+           <Button 
+             onClick={addProductWithQuantity}
+             className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 transition-all duration-300 shadow-sm text-white flex-1 shadow-md hover:shadow-lg transition-all duration-200"
+             leftSection={<FaCartPlus size={16} />}
+           >
+             Ajouter
+           </Button>
+         </div>
+       </div>
+     )}
+   </Modal>
 
    <Drawer 
      opened={openedA} 
