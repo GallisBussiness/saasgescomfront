@@ -21,7 +21,7 @@ import { add, format, isAfter, isBefore } from "date-fns";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import pdfMake from "pdfmake/build/pdfmake";
 import { font } from "../../vfs_fonts";
-pdfMake.vfs = font;
+pdfMake.vfs = font; 
 import { ParamService } from "../../services/paramservice";
 import { ClientService } from "../../services/client.service";
 import { DateInput, DatePicker } from "@mantine/dates";
