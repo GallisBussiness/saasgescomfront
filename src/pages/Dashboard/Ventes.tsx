@@ -28,7 +28,6 @@ import { DateInput, DatePicker } from "@mantine/dates";
 import { sortBy } from "lodash";
 import { TbSum, TbDiscount } from "react-icons/tb";
 import { InventoryService } from "../../services/Inventory.service";
-// import SectionTitle from "../../components/SectionTitle";
 import { formatN } from "../../lib/helpers";
 import { authclient } from '../../../lib/auth-client';
 import { validate } from "uuid";
@@ -153,7 +152,11 @@ function Ventes() {
     const {mutate:createVente,isPending:loadingCreate} = useMutation({
     mutationFn: (data: any) => venteService.create(data),
     onSuccess: (data) => {
-      toast.success(`Vente cree avec success/ #${data.ref}`);
+      toast.success(`Vente cree avec success/ #${data.ref}`, {
+        icon: '📝',
+        duration: 3000,
+        position: 'top-center'
+      });
       close();
       qc.invalidateQueries({queryKey:key});
       navigate(`/dashboard/ventes/${data._id}`);
@@ -163,7 +166,11 @@ function Ventes() {
 const {mutate:updateVente,isPending:loadingUpdate} = useMutation({
  mutationFn:(data:{id:string,data:any}) => venteService.update(data.id, data.data),
  onSuccess: () => {
-  toast.success(`Vente mise à jour avec success`);
+  toast.success(`Vente mise à jour avec success`, {
+    icon: '🔄',
+    duration: 3000,
+    position: 'top-center'
+  });
   close();
   qc.invalidateQueries({queryKey:key});
  }
@@ -172,17 +179,65 @@ const {mutate:updateVente,isPending:loadingUpdate} = useMutation({
 const {mutate:deleteVente,isPending:loadingDelete} = useMutation({
     mutationFn: (id:string) => venteService.delete(id),
     onSuccess: () => {
-      toast.success(`Vente supprimée avec success`);
+      toast.success(`Vente supprimée avec succès`, {
+        icon: '🗑️',
+        duration: 3000,
+        position: 'top-center'
+      });
       qc.invalidateQueries({queryKey:key});
+    },
+    onError: (error: any) => {
+      toast.error(`Erreur lors de la suppression: ${error.message || 'Erreur inconnue'}`, {
+        icon: '❌',
+        duration: 5000,
+        position: 'top-center'
+      });
     }
 });
 
   const confirm = (id: string) => {
-    deleteVente(id)
+    // Ajouter une confirmation supplémentaire avec toast personnalisé
+    toast.custom((t) => (
+      <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-4 max-w-md">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">⚠️</span>
+            <span className="font-medium text-slate-800">Confirmer la suppression</span>
+          </div>
+          <p className="text-sm text-slate-600">
+            Cette action est irréversible. Êtes-vous sûr de vouloir supprimer cette vente ?
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                deleteVente(id);
+                toast.dismiss(t);
+              }}
+              className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors"
+            >
+              Supprimer
+            </button>
+            <button
+              onClick={() => toast.dismiss(t)}
+              className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded-md text-sm font-medium transition-colors"
+            >
+              Annuler
+            </button>
+          </div>
+        </div>
+      </div>
+    ), {
+      duration: 10000,
+      position: 'top-center',
+    });
   };
   
   const cancel = () => {
-    toast.info("L'action a été annulé !");
+    toast.info("Action annulée", {
+      icon: 'ℹ️',
+      duration: 2000,
+      position: 'bottom-right'
+    });
   };
 
 
@@ -240,6 +295,11 @@ const {mutate:deleteVente,isPending:loadingDelete} = useMutation({
      closeA();
      qc.invalidateQueries({queryKey:keyClient});
      form.setFieldValue('client', '');
+     toast.success(`Client créé avec succès`, {
+       icon: '📝',
+       duration: 3000,
+       position: 'top-center'
+     });
     }
   });
 
@@ -1252,11 +1312,11 @@ const fields = form.getValues().produits.map((item: any, index: number) => {
        </Text>
      } 
      size="xl"
+     centered
      overlayProps={{
        blur: 3,
        opacity: 0.55,
      }}
-     centered
    >
    <LoadingOverlay
          visible={loadingCreate || isPending || loadingUpdate}
@@ -1619,7 +1679,7 @@ const fields = form.getValues().produits.map((item: any, index: number) => {
            </Button>
            <Button 
              onClick={addProductWithQuantity}
-             className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 transition-all duration-300 shadow-sm text-white flex-1 shadow-md hover:shadow-lg transition-all duration-200"
+             className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 transition-all duration-200 text-white flex-1 hover:shadow-lg"
              leftSection={<FaCartPlus size={16} />}
            >
              Ajouter

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { FaUsers, FaFileAlt, FaChevronRight, FaWarehouse } from "react-icons/fa";
+import { FaUsers, FaFileAlt, FaChevronRight, FaWarehouse, FaClipboardList } from "react-icons/fa";
 import { FaBasketShopping } from 'react-icons/fa6';
 import { MdDashboard, MdInventory, MdProductionQuantityLimits, MdSell } from 'react-icons/md';
 import { motion } from 'framer-motion';
@@ -120,15 +120,40 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
               >
                 <NavLink
                   to="ventes"
-                  className={`group relative flex items-center gap-3 rounded-xl py-3 px-4 font-medium text-white duration-300 ease-in-out ${pathname.includes('ventes') 
+                  className={`group relative flex items-center gap-3 rounded-xl py-3 px-4 font-medium text-white duration-300 ease-in-out ${pathname.includes('ventes') && !pathname.includes('inventaire-ventes') 
                     ? 'bg-white/20 shadow-md' 
                     : 'hover:bg-white/10'}`}
                 >
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-lg ${pathname.includes('ventes') ? 'bg-white text-[#FF5D14]' : 'bg-white/10'} transition-all duration-300`}>
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-lg ${pathname.includes('ventes') && !pathname.includes('inventaire-ventes') ? 'bg-white text-[#FF5D14]' : 'bg-white/10'} transition-all duration-300`}>
                     <MdSell className="text-xl" />
                   </div>
                   <span>Ventes</span>
                   {hoveredItem === 'ventes' && (
+                    <motion.div 
+                      initial={{ opacity: 0, x: -5 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="absolute right-2"
+                    >
+                      <FaChevronRight className="text-white/60 text-xs" />
+                    </motion.div>
+                  )}
+                </NavLink>
+              </li>
+              <li 
+                onMouseEnter={() => setHoveredItem('inventaire-ventes')} 
+                onMouseLeave={() => setHoveredItem(null)}
+              >
+                <NavLink
+                  to="inventaire-ventes"
+                  className={`group relative flex items-center gap-3 rounded-xl py-3 px-4 font-medium text-white duration-300 ease-in-out ${pathname.includes('inventaire-ventes') 
+                    ? 'bg-white/20 shadow-md' 
+                    : 'hover:bg-white/10'}`}
+                >
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-lg ${pathname.includes('inventaire-ventes') ? 'bg-white text-[#FF5D14]' : 'bg-white/10'} transition-all duration-300`}>
+                    <FaClipboardList className="text-xl" />
+                  </div>
+                  <span>Inventaire Ventes</span>
+                  {hoveredItem === 'inventaire-ventes' && (
                     <motion.div 
                       initial={{ opacity: 0, x: -5 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -202,7 +227,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                   <div className={`flex items-center justify-center w-8 h-8 rounded-lg ${pathname.includes('stock') ? 'bg-white text-[#FF5D14]' : 'bg-white/10'} transition-all duration-300`}>
                     <MdInventory className="text-xl" />
                   </div>
-                  <span>Inventaire</span>
+                  <span>Stock</span>
                   {hoveredItem === 'stock' && (
                     <motion.div 
                       initial={{ opacity: 0, x: -5 }}

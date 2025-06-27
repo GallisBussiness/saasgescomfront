@@ -1164,7 +1164,7 @@ return (
            </Button>
            <Button 
              onClick={addProductWithQuantity}
-             className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 transition-all duration-300 shadow-sm text-white flex-1 shadow-md hover:shadow-lg transition-all duration-200"
+             className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 transition-all duration-200 text-white flex-1 shadow-md hover:shadow-lg"
              leftSection={<FaCartPlus size={16} />}
            >
              Ajouter
