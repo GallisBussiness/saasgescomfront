@@ -13,7 +13,11 @@ const Api = axios.create({
   }, function (error) {
     if(error.response.status === 440){
       localStorage.removeItem(import.meta.env.VITE_TOKENSTORAGENAME);
-      window.location.reload();
+      
+    }
+    if(error.response.status === 401 || error.response.status === 500){
+      localStorage.removeItem(import.meta.env.VITE_TOKENSTORAGENAME);
+      window.location.href = "/auth/signin";
     }
     return Promise.reject(error);
   });

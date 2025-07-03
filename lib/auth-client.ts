@@ -1,8 +1,9 @@
 import { createAuthClient } from "better-auth/react"
 export const authclient = createAuthClient({
-    baseURL: import.meta.env.VITE_BACKURL, // the base url of your auth server
+    baseURL: import.meta.env.VITE_BACKURL, 
+    // the base url of your auth server
     fetchOptions: {
-        onSuccess: (ctx) => {
+        onSuccess: (ctx:any) => {
             const authToken = ctx.response.headers.get("set-auth-token") // get the token from the response headers
             // Store the token securely (e.g., in localStorage)
             if(authToken){
