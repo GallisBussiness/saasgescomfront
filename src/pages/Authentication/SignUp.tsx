@@ -66,7 +66,7 @@ const SignUp: React.FC = () => {
               <img
                 className="w-auto h-16 mx-auto mb-4"
                 src="/img/gallis.png"
-                alt="Gestion Commerciale"
+                alt="SAMACOOM"
               />
               <Title order={2} className="text-gray-800 dark:text-white font-bold tracking-tight">
                 Créez votre compte
@@ -222,7 +222,7 @@ const SignUp: React.FC = () => {
       <div className="relative flex-1 hidden w-0 lg:block">
         <div className="absolute inset-0 object-cover w-full h-full bg-gradient-to-br from-[#FF5D14] to-[#FF7A40]">
           <div className="flex flex-col justify-center h-full p-12 text-white">
-            <Title order={1} className="text-4xl font-bold mb-6 text-white">Gestion Commerciale</Title>
+            <Title order={1} className="text-4xl font-bold mb-6 text-white">SAMACOOM</Title>
             <Text size="xl" className="mb-10 text-white opacity-90">Gérez efficacement votre activité commerciale</Text>
 
             <div className="space-y-8">
